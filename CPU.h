@@ -14,18 +14,18 @@ class CPU{
         int execute();
         int execute_single();
         int getCurrSize();
-        dword getMem(int);
         dword getIR(const dword);
         dword getPC();
         const dword* getReg();
+        const byte* getMem(dword addr);
         const byte* getDispMem();
 
         void show_reg();
-        void rst();
+        void rst(int mode = 0);
         void setloaded();
         bool isloaded();
         bool is_mem_modified();
-        dword mem_modified_addr();
+        dword get_mem_modified_addr();
 
         dword getIC();
 
@@ -45,6 +45,7 @@ class CPU{
 
         bool loadedflag;
         bool mem_modified_flag;
+        dword mem_modified_addr;
 };
 
 #endif // MIPSCPU_H

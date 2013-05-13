@@ -87,13 +87,18 @@ dword CPU::getIC() {
 }
 
 void CPU::setEP(dword endp) {
-    printf("%08X\n", endp);
+    printf("End point: %08X\n", endp);
     if (USER_MEM <= endp && endp <= MAIN_MEM)
         endpoint = endp;
+    endpoint = (endpoint - USER_MEM) / 4 * 4 + USER_MEM;
 }
 
 dword CPU::getEP() {
     return endpoint;
+}
+
+dword CPU::get_mem_modified_addr() {
+    return mem_modified_addr;
 }
 
 int CPU::execute_single() {
@@ -335,12 +340,14 @@ int CPU::execute_single() {
         case 40:    //sb
             Memory[Reg[rs]+dat+0] = (byte)(Reg[rt] & 0xFF);
             mem_modified_flag = true;
+            mem_modified_addr = Reg[rs] + dat;
             break;
 
         case 41:    //sh
             Memory[Reg[rs]+dat+0] = (byte)((Reg[rt] >> 8) & 0xFF);
             Memory[Reg[rs]+dat+1] = (byte)(Reg[rt] & 0xFF);
             mem_modified_flag = true;
+            mem_modified_addr = Reg[rs] + dat;
             break;
 
         case 43:    //sw
@@ -349,6 +356,7 @@ int CPU::execute_single() {
             Memory[Reg[rs]+dat+2] = (byte)((Reg[rt] >> 8) & 0xFF);
             Memory[Reg[rs]+dat+3] = (byte)(Reg[rt] & 0xFF);
             mem_modified_flag = true;
+            mem_modified_addr = Reg[rs] + dat;
             break;
 
         case 2:     //j
@@ -515,13 +523,17 @@ int CPU::execute() {
     return 0;
 }
 
-void CPU::rst() {
+void CPU::rst(int mode) {
     memset(Reg, 0, sizeof(Reg));
     Reg[29] = DISP_MEM - 1;
 
     /* clear screen */
     for (int i = END_MEM - WIDTH*HEIGHT; i < END_MEM; i++) {
         Memory[i] = 0;
+    }
+
+    if (mode) {
+        for (dword i = USER_MEM; i < DISP_MEM; i++) Memory[i] = 0;
     }
 
     CurrSize = 0;
@@ -549,8 +561,8 @@ int CPU::getCurrSize() {
     return CurrSize;
 }
 
-dword CPU::getMem(int i) {
-    return (i >= 0 && i < CurrSize) ? Memory[i] : 0;
+const byte *CPU::getMem(dword addr) {
+    return (addr < END_MEM) ? Memory+addr : NULL;
 }
 
 const dword* CPU::getReg() {

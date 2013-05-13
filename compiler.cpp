@@ -200,7 +200,7 @@ dword compiler::immed(char s[], dword mask, int div) {
     int  p = 0;
     dword r = 0;
     char ch = 0;
-    char *s1;
+    char *s1 = NULL;
     
     /* split */
     while (s[p]) {

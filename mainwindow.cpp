@@ -1,3 +1,5 @@
+#include <QTableView>
+
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "screendialog.h"
@@ -28,8 +30,10 @@ MainWindow::MainWindow(QWidget *parent) :
 
     commd_model = NULL;
     Reg_model = NULL;
+    mainmem_model = NULL;
+    viewmem_model = NULL;
 
-    resetAll(0);
+    resetAll(1);
 }
 
 MainWindow::~MainWindow()
@@ -46,12 +50,20 @@ void MainWindow::resetAll(int mode) {
         ui->addressLabel->setText("Program counter: ");
     }
 
-    myCPU.rst();
+    myCPU.rst(mode);
+
     setReg(myCPU.getReg(), myCPU.REGNUM, 1);
+
+    if (mode)
+        setTableView(ui->main_memTableView, &mainmem_model, myCPU.MAIN_MEM, myCPU.DISP_MEM,
+                     myCPU.getMem(0), myCPU.MAIN_MEM, 1);
+    setTableView(ui->view_memTableView, &viewmem_model, myCPU.DISP_MEM, myCPU.END_MEM,
+                 myCPU.getMem(0), myCPU.DISP_MEM, 1);
+
     paintRow(commd_model, myCPU.getIC(), QBrush(QColor(255, 0, 0, 127)));
     emit modified(getDispContent());
 
-    if (mode) {
+    if (!mode) {
         ui->breakpointLineEdit->setEnabled(true);
         ui->endpointLineEdit->setEnabled(true);
         //ui->codeTableView->selectRow(0);
@@ -153,7 +165,7 @@ void MainWindow::setReg(const dword Reg[], int size, int mode) {
     ui->regTableView->setModel(Reg_model);
     ui->regTableView->resizeColumnToContents(0);
     ui->regTableView->resizeRowsToContents();
-    ui->codeTableView->horizontalHeader()->setResizeMode(QHeaderView::Fixed);
+    ui->regTableView->horizontalHeader()->setResizeMode(QHeaderView::Fixed);
     ui->regTableView->horizontalHeader()->setResizeMode(QHeaderView::Stretch);
 }
 
@@ -177,7 +189,7 @@ int MainWindow::openFile() {
 
 int MainWindow::loadFile(QString fileName) {
 
-    resetAll();
+    resetAll(1);
 
     // compile
     compiler mycompiler;
@@ -271,6 +283,7 @@ void MainWindow::setPoint() {
         ui->endpointLineEdit->setEnabled(false);
 
         breakpoint = ui->breakpointLineEdit->text().toInt(0, 16);
+        breakpoint = (breakpoint - myCPU.USER_MEM) / 4 * 4 + myCPU.USER_MEM;
         myCPU.setEP(ui->endpointLineEdit->text().toInt(0, 16));
 
         ui->breakpointLineEdit->setText(dword2QString(breakpoint));
@@ -295,8 +308,21 @@ int MainWindow::steprun() {
 
         setReg(myCPU.getReg(), myCPU.REGNUM);
 
-        if (myCPU.is_mem_modified())
-            emit modified(getDispContent());
+        if (myCPU.is_mem_modified()) {
+            dword addr = myCPU.get_mem_modified_addr();
+
+            if (myCPU.DISP_MEM <= addr && addr < myCPU.END_MEM) {
+                setTableView(ui->view_memTableView, &viewmem_model,
+                             myCPU.DISP_MEM, myCPU.END_MEM,
+                             myCPU.getMem(0), addr);
+                emit modified(getDispContent());
+            }
+            else
+                if (myCPU.MAIN_MEM <= addr && addr < myCPU.DISP_MEM) {
+                    setTableView(ui->main_memTableView, &mainmem_model, myCPU.MAIN_MEM, myCPU.DISP_MEM,
+                                 myCPU.getMem(0), addr);
+                }
+        }
 
         return 0;
     }
@@ -319,6 +345,7 @@ int MainWindow::run() {
         if (steprun())
             return 0;
     }
+    return 1;
 }
 
 void MainWindow::clickscreen() {
@@ -346,4 +373,71 @@ QString MainWindow::dword2QString(const dword &data) {
     QString str;
     str.sprintf("%08X", data);
     return str;
+}
+
+void MainWindow::setTableView(QTableView *tableview, QStandardItemModel **view_model,
+                              dword addr_st, dword addr_ed, const byte *mem_ptr,
+                              dword addr, int mode) {
+    if (mode == 0) {
+        for (dword i = addr; i < addr+4; i++) {
+            QStringList t;
+            QString str;
+            dword row = (i - addr_st) / 4, col = i % 4;
+
+            str = QString((*view_model)->item(row, 1)->text());
+            t = QString((*view_model)->item(row, 1)->text()).split(" ");
+            QString temp;
+            temp.sprintf("%02X", mem_ptr[i]);
+            t[col] = temp;
+            (*view_model)->setItem(row, 1, new QStandardItem( t.join(" ") ));
+            (*view_model)->item(row, 1)->setTextAlignment(Qt::AlignCenter);
+
+            str = QString((*view_model)->item(row, 2)->text());
+            str[col*2] = QChar(mem_ptr[i]);
+            (*view_model)->setItem(row, 2, new QStandardItem( str ));
+            (*view_model)->item(row, 2)->setTextAlignment(Qt::AlignCenter);
+        }
+        return;
+    }
+
+    QStandardItemModel *model = new QStandardItemModel;
+    model->setColumnCount(3);
+    model->setHeaderData(0, Qt::Horizontal, tr("Address"));
+    model->setHeaderData(1, Qt::Horizontal, tr("Content"));
+    model->setHeaderData(2, Qt::Horizontal, tr("Ascii"));
+
+    for (int i = 0; addr_st+i < addr_ed; i+=4) {
+        QStringList t;
+        int row = i/4;
+
+        model->setItem(row, 0, new QStandardItem(dword2QString(addr_st+i)));
+        model->item(row, 0)->setTextAlignment(Qt::AlignCenter);
+
+        t.clear();
+        for (int j = 0; j < 4; j++) {
+            QString str;
+            str.sprintf("%02X", mem_ptr[addr_st+i+j]);
+            t << str;
+        }
+        model->setItem(row, 1, new QStandardItem( t.join(" ") ));
+        model->item(row, 1)->setTextAlignment(Qt::AlignCenter);
+
+        t.clear();
+        for (int j = 0; j < 4; j++) {
+            t << QChar(mem_ptr[addr_st+i+j]);
+        }
+        model->setItem(row, 2, new QStandardItem( t.join(" ") ));
+        model->item(row, 2)->setTextAlignment(Qt::AlignCenter);
+    }
+
+    if (tableview->model())
+        delete tableview->model();
+
+    *view_model = model;
+
+    tableview->setModel(*view_model);
+    tableview->resizeColumnsToContents();
+    tableview->resizeRowsToContents();
+    tableview->horizontalHeader()->setResizeMode(QHeaderView::Fixed);
+    tableview->horizontalHeader()->setResizeMode(QHeaderView::Stretch);
 }
