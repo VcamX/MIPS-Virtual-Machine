@@ -1,0 +1,50 @@
+#ifndef MIPSCPU_H
+#define MIPSCPU_H
+#include "data_type.h"
+
+#include <string>
+
+class CPU{
+    public:
+        CPU();
+        ~CPU();
+        
+        int boot(std::string filename);
+        int boot(const dword *commd_set, int size);
+        int execute();
+        int execute_single();
+        int getCurrSize();
+        dword getMem(int);
+        dword getIR(const dword);
+        dword getPC();
+        const dword* getReg();
+        const byte* getDispMem();
+
+        void show_reg();
+        void rst();
+        void setloaded();
+        bool isloaded();
+        bool is_mem_modified();
+        dword mem_modified_addr();
+
+        dword getIC();
+
+        void setEP(dword endp);
+        dword getEP();
+
+        enum { REGNUM = 34, REG_HI = 32, REG_LO = 33,
+               WIDTH = 80, HEIGHT = 25,
+               END_MEM = 0x10000, // 64Kb
+               KERNEL_MEM = 0, USER_MEM = 0x2000, MAIN_MEM = 0x5000, DISP_MEM = END_MEM - WIDTH*HEIGHT };
+        
+    private:
+        dword PC, IR, MDR, endpoint;
+        dword Reg[REGNUM];
+        int CurrSize;
+        byte Memory[END_MEM];
+
+        bool loadedflag;
+        bool mem_modified_flag;
+};
+
+#endif // MIPSCPU_H
