@@ -67,37 +67,32 @@ int MainWindow::paintRow(QStandardItemModel *model, int row, const QBrush &brush
 
 void MainWindow::setReg(const dword Reg[], int size, int mode) {
     if (mode == 0) {
-        QString str;
         int i;
         for (i = 0; i < (size-2)/2; i++) {
-            str.sprintf("%08X", Reg[i]);
-            if (Reg_model->item(i, 1)->text() != str) {
-                Reg_model->item(i, 1)->setText(str);
+            if (Reg_model->item(i, 1)->text() != dword2QString(Reg[i])) {
+                Reg_model->item(i, 1)->setText(dword2QString(Reg[i]));
                 Reg_model->item(i, 1)->setBackground(QBrush(QColor(0, 0, 255, 127)));
             }
             else
                 Reg_model->item(i, 1)->setBackground(QBrush(QColor(255, 255, 255)));
 
-            str.sprintf("%08X", Reg[i+(size-2)/2]);
-            if (Reg_model->item(i, 3)->text() != str) {
-                Reg_model->item(i, 3)->setText(str);
+            if (Reg_model->item(i, 3)->text() != dword2QString(Reg[i+(size-2)/2])) {
+                Reg_model->item(i, 3)->setText(dword2QString(Reg[i+(size-2)/2]));
                 Reg_model->item(i, 3)->setBackground(QBrush(QColor(0, 0, 255, 127)));
             }
             else
                 Reg_model->item(i, 3)->setBackground(QBrush(QColor(255, 255, 255)));
         }
 
-        str.sprintf("%08X", Reg[size-2]);
-        if (Reg_model->item(i, 1)->text() != str) {
-            Reg_model->item(i, 1)->setText(str);
+        if (Reg_model->item(i, 1)->text() != dword2QString(Reg[size-2])) {
+            Reg_model->item(i, 1)->setText(dword2QString(Reg[size-2]));
             Reg_model->item(i, 1)->setBackground(QBrush(QColor(0, 0, 255, 127)));
         }
         else
             Reg_model->item(i, 1)->setBackground(QBrush(QColor(255, 255, 255)));
 
-        str.sprintf("%08X", Reg[size-1]);
-        if (Reg_model->item(i, 3)->text() != str) {
-            Reg_model->item(i, 3)->setText(str);
+        if (Reg_model->item(i, 3)->text() != dword2QString(Reg[size-1])) {
+            Reg_model->item(i, 3)->setText(dword2QString(Reg[size-1]));
             Reg_model->item(i, 3)->setBackground(QBrush(QColor(0, 0, 255, 127)));
         }
         else
@@ -123,8 +118,7 @@ void MainWindow::setReg(const dword Reg[], int size, int mode) {
         model->setItem(i, 0, new QStandardItem(temp));
         model->item(i, 0)->setTextAlignment(Qt::AlignCenter);
 
-        temp.sprintf("%08X", Reg[i]);
-        model->setItem(i, 1, new QStandardItem(temp));
+        model->setItem(i, 1, new QStandardItem(dword2QString(Reg[i])));
         model->item(i, 1)->setTextAlignment(Qt::AlignCenter);
 
         int j = i + (size-2)/2;
@@ -133,32 +127,22 @@ void MainWindow::setReg(const dword Reg[], int size, int mode) {
         model->setItem(i, 2, new QStandardItem(temp));
         model->item(i, 2)->setTextAlignment(Qt::AlignCenter);
 
-        temp.sprintf("%08X", Reg[j]);
-        model->setItem(i, 3, new QStandardItem(temp));
+        model->setItem(i, 3, new QStandardItem(dword2QString(Reg[j])));
         model->item(i, 3)->setTextAlignment(Qt::AlignCenter);
-        /*
-        if (!mode && Reg_model) {
-            if (Reg_model->item(i, 3)->text() != model->item(i, 3)->text())
-                model->item(i, 3)->setBackground(QBrush(QColor(0, 0, 255, 127)));
-        } */
     }
     int i = size/2 - 1;
     t.regName(s, (dword)32);
-    temp.sprintf("%s", s);
-    model->setItem(i, 0, new QStandardItem(temp));
+    model->setItem(i, 0, new QStandardItem(QString(s)));
     model->item(i, 0)->setTextAlignment(Qt::AlignCenter);
 
-    temp.sprintf("%08X", Reg[size-2]);
-    model->setItem(i, 1, new QStandardItem(temp));
+    model->setItem(i, 1, new QStandardItem(dword2QString(Reg[size-2])));
     model->item(i, 1)->setTextAlignment(Qt::AlignCenter);
 
     t.regName(s, (dword)33);
-    temp.sprintf("%s", s);
-    model->setItem(i, 2, new QStandardItem(temp));
+    model->setItem(i, 2, new QStandardItem(QString(s)));
     model->item(i, 2)->setTextAlignment(Qt::AlignCenter);
 
-    temp.sprintf("%08X", Reg[size-1]);
-    model->setItem(i, 3, new QStandardItem(temp));
+    model->setItem(i, 3, new QStandardItem(dword2QString(Reg[size-1])));
     model->item(i, 3)->setTextAlignment(Qt::AlignCenter);
 
 
@@ -228,16 +212,14 @@ int MainWindow::loadFile(QString fileName) {
     int i;
     QString temp;
     for (i = 0; i < mydecompiler.get_instru_num(); i++) {
-        temp.sprintf("%08X", myCPU.USER_MEM+i*4);
-        model->setItem(i, 0, new QStandardItem(temp));
+        model->setItem(i, 0, new QStandardItem(dword2QString(myCPU.USER_MEM+i*4)));
         model->item(i, 0)->setTextAlignment(Qt::AlignCenter);
 
         temp.sprintf("%s", mydecompiler.get_instru(i).c_str());
         model->setItem(i, 1, new QStandardItem(temp));
         model->item(i, 1)->setTextAlignment(Qt::AlignCenter);
 
-        temp.sprintf("%08X", mem[i]);
-        model->setItem(i, 2, new QStandardItem(temp));
+        model->setItem(i, 2, new QStandardItem(dword2QString(mem[i])));
         model->item(i, 2)->setTextAlignment(Qt::AlignCenter);
     }
     model->setItem(i, 0, new QStandardItem("End"));
@@ -276,9 +258,9 @@ int MainWindow::loadFile(QString fileName) {
     // disable widgets
     //ui->breakpointLineEdit->setEnabled(false);
     //ui->endpointLineEdit->setEnabled(false);
-    temp.sprintf("%08X", myCPU.getEP());
-    ui->breakpointLineEdit->setText(temp);
-    ui->endpointLineEdit->setText(temp);
+
+    ui->breakpointLineEdit->setText(dword2QString(myCPU.getEP()));
+    ui->endpointLineEdit->setText(dword2QString(myCPU.getEP()));
 
     return 0;
 }
@@ -291,11 +273,8 @@ void MainWindow::setPoint() {
         breakpoint = ui->breakpointLineEdit->text().toInt(0, 16);
         myCPU.setEP(ui->endpointLineEdit->text().toInt(0, 16));
 
-        QString temp;
-        temp.sprintf("%08X", breakpoint);
-        ui->breakpointLineEdit->setText(temp);
-        temp.sprintf("%08X", myCPU.getEP());
-        ui->endpointLineEdit->setText(temp);
+        ui->breakpointLineEdit->setText(dword2QString(breakpoint));
+        ui->endpointLineEdit->setText(dword2QString(myCPU.getEP()));
     }
 }
 
@@ -363,7 +342,7 @@ QString MainWindow::getDispContent() {
     return content;
 }
 
-QString dword2QString(dword data) {
+QString MainWindow::dword2QString(const dword &data) {
     QString str;
     str.sprintf("%08X", data);
     return str;

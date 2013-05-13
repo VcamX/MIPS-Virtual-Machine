@@ -47,7 +47,7 @@ private:
     void setPoint();
 
     // tools for convinient
-    inline QString dword2QString(dword data);
+    inline QString dword2QString(const dword &data);
 
     CPU myCPU;
     screendialog *screen;
