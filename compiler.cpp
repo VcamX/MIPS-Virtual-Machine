@@ -784,7 +784,57 @@ int compiler::gen_instru(char s[][ARG_LEN]) {
         strcpy(temp[3], s[2]);
         list[list_n++] = gen_core(temp);
     }
-    
+
+    else if (!strcmp(s[0], "rol")) {
+        dword t = atom(s[3]) & 0x1F;
+        strcpy(temp[0], "srl");
+        strcpy(temp[1], "$at");
+        strcpy(temp[2], s[2]);
+        sprintf(temp[3], "%d", 0x20 - t);
+        printf("%X\n", t);
+        list[list_n++] = gen_core(temp);
+
+        strcpy(temp[0], "sll");
+        strcpy(temp[1], s[2]);
+        strcpy(temp[2], s[2]);
+        //sprintf(temp[3], "%d", t);
+        list[list_n++] = gen_core(temp);
+
+        strcpy(temp[0], "or");
+        strcpy(temp[1], s[1]);
+        strcpy(temp[2], s[2]);
+        strcpy(temp[3], "$at");
+        list[list_n++] = gen_core(temp);
+    }
+
+    else if (!strcmp(s[0], "push")) {
+        strcpy(temp[0], "addi");
+        strcpy(temp[1], "$sp");
+        strcpy(temp[2], "$sp");
+        strcpy(temp[3], "-4");
+        list[list_n++] = gen_core(temp);
+
+        strcpy(temp[0], "sw");
+        strcpy(temp[1], s[1]);
+        strcpy(temp[2], "0");
+        strcpy(temp[3], "$sp");
+        list[list_n++] = gen_core(temp);
+    }
+
+    else if (!strcmp(s[0], "pop")) {
+        strcpy(temp[0], "lw");
+        strcpy(temp[1], s[1]);
+        strcpy(temp[2], "0");
+        strcpy(temp[3], "$sp");
+        list[list_n++] = gen_core(temp);
+
+        strcpy(temp[0], "addi");
+        strcpy(temp[1], "$sp");
+        strcpy(temp[2], "$sp");
+        strcpy(temp[3], "4");
+        list[list_n++] = gen_core(temp);
+    }
+
     else {
         list[list_n++] = gen_core(s);
         if (list[list_n-1] != -1)

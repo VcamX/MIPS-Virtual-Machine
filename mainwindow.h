@@ -4,6 +4,7 @@
 #include <QMainWindow>
 
 #include <QFileDialog>
+#include <QSplashScreen>
 #include <QMessageBox>
 #include <QTableView>
 #include <QStandardItemModel>
@@ -29,6 +30,7 @@ public:
 
 signals:
     void modified(const QString &);
+    void loadingdone();
     
 private slots:
     void resetAll(int mode = 0);
@@ -37,6 +39,7 @@ private slots:
     int steprun();
     int run();
     void clickscreen();
+    void about();
 
 private:
     Ui::MainWindow *ui;

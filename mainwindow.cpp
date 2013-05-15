@@ -3,6 +3,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "screendialog.h"
+#include "loadingdialog.h"
 
 #include <iostream>
 
@@ -19,6 +20,7 @@ MainWindow::MainWindow(QWidget *parent) :
     //this->setFixedSize(this->width(), this->height());
     this->layout()->setSizeConstraint(QLayout::SetFixedSize);
 
+    connect(ui->aboutAction, SIGNAL(triggered()), this, SLOT(about()));
     connect(ui->resetButton, SIGNAL(clicked()), this, SLOT(resetAll()));
     connect(ui->openAction, SIGNAL(triggered()), this, SLOT(openFile()));
     connect(ui->steprunButton, SIGNAL(clicked()), this, SLOT(steprun()));
@@ -54,9 +56,10 @@ void MainWindow::resetAll(int mode) {
 
     setReg(myCPU.getReg(), myCPU.REGNUM, 1);
 
-    if (mode)
+    if (mode) {
         setTableView(ui->main_memTableView, &mainmem_model, myCPU.MAIN_MEM, myCPU.DISP_MEM,
                      myCPU.getMem(0), myCPU.MAIN_MEM, 1);
+    }
     setTableView(ui->view_memTableView, &viewmem_model, myCPU.DISP_MEM, myCPU.END_MEM,
                  myCPU.getMem(0), myCPU.DISP_MEM, 1);
 
@@ -188,6 +191,10 @@ int MainWindow::openFile() {
 }
 
 int MainWindow::loadFile(QString fileName) {
+    loadingdialog *loading = new loadingdialog(this);
+    connect(this, SIGNAL(loadingdone()), loading, SLOT(close()));
+    loading->show();
+
 
     resetAll(1);
 
@@ -273,6 +280,10 @@ int MainWindow::loadFile(QString fileName) {
 
     ui->breakpointLineEdit->setText(dword2QString(myCPU.getEP()));
     ui->endpointLineEdit->setText(dword2QString(myCPU.getEP()));
+
+
+    emit loadingdone();
+    delete loading;
 
     return 0;
 }
@@ -440,4 +451,12 @@ void MainWindow::setTableView(QTableView *tableview, QStandardItemModel **view_m
     tableview->resizeRowsToContents();
     tableview->horizontalHeader()->setResizeMode(QHeaderView::Fixed);
     tableview->horizontalHeader()->setResizeMode(QHeaderView::Stretch);
+}
+
+void MainWindow::about() {
+    QMessageBox::about(this, tr("About MIPS Virtual Machine"),
+                       tr("<h2>MIPS Virtual Machine v1.0</h2>"
+                          "<p>Copyright &copy; 2013<p>"
+                          "MIPS Virtual Machine is a software implemented abstraction of the underlying MIPS hardware,"
+                          "It emulates the MIPS-based machine and implement many basic instrution and psedo-instrution."));
 }

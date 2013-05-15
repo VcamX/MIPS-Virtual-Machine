@@ -525,7 +525,7 @@ int CPU::execute() {
 
 void CPU::rst(int mode) {
     memset(Reg, 0, sizeof(Reg));
-    Reg[29] = DISP_MEM - 1;
+    Reg[29] = DISP_MEM;
 
     /* clear screen */
     for (int i = END_MEM - WIDTH*HEIGHT; i < END_MEM; i++) {
