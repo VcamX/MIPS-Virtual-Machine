@@ -239,14 +239,16 @@ int CPU::execute_single() {
 
                 case 16:    //bltzal
                     if (rs < 0) {
-                        Reg[31] = PC + 4;
+                        //Reg[31] = PC + 4; //enable delay slot
+                        Reg[31] = PC; //disable delay slot
                         PC += (dat << 2);
                     }
                     break;
 
                 case 17:    //bgezal
                     if (rs >= 0) {
-                        Reg[31] = PC + 4;
+                        //Reg[31] = PC + 4; //enable delay slot
+                        Reg[31] = PC; //disable delay slot
                         PC += (dat << 2);
                     }
                     break;
@@ -364,8 +366,8 @@ int CPU::execute_single() {
             break;
 
         case 3:     //jal
-            Reg[31] = PC + 4;
-            //Reg[31] = PC;
+            //Reg[31] = PC + 4; //enable delay slot
+            Reg[31] = PC; //disable delay slot
             PC = adr;
             break;
         

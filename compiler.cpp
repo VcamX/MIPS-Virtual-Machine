@@ -475,7 +475,7 @@ dword compiler::gen_core(char s[][ARG_LEN]) {
         return (regX(s[1]) << 21) |
                (regX(s[2]) << 16) | 25;
 
-    else if (!strcmp(s[0], "noop"))
+    else if (!strcmp(s[0], "nop"))
         return 0;
     
     else if (!strcmp(s[0], "nor"))

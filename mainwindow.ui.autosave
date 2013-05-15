@@ -249,7 +249,7 @@
     <item>
      <widget class="QTabWidget" name="memoryTabWidget">
       <property name="currentIndex">
-       <number>2</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
