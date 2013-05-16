@@ -916,7 +916,7 @@ int compiler::gen_instru(char s[][ARG_LEN]) {
     }
     
     else if (!strcmp(s[0], "li")) {
-        dword data = atom(s[2]);
+        dword data = immed(s[2], 0xFFFFFFFF, 0);
         strcpy(temp[0], "lui");
         strcpy(temp[1], s[1]);
         itoa(data >> 16, temp[2], 10);
