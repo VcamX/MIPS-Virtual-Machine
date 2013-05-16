@@ -57,7 +57,7 @@ private:
     CPU myCPU;
     screendialog *screen;
 
-    QStandardItemModel *Reg_model, *commd_model, *viewmem_model, *mainmem_model;
+    QStandardItemModel *Reg_model, *commd_model, *viewmem_model, *staticmem_model, *mainmem_model;
     dword breakpoint;
 };
 

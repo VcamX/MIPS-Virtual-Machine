@@ -101,6 +101,14 @@ dword CPU::get_mem_modified_addr() {
     return mem_modified_addr;
 }
 
+int CPU::load_static_data(const byte *static_mem, dword size) {
+    if (size > MAIN_MEM - STATIC_MEM) return 1;
+    for (dword i = 0; i < size; i++) {
+        Memory[STATIC_MEM + i] = static_mem[i];
+    }
+    return 0;
+}
+
 int CPU::execute_single() {
     int op, rs, rt, rd, dat, udat, adr, shmt, fun;
     unsigned long long t;
@@ -391,135 +399,6 @@ int CPU::execute() {
             case 2:
                 break;
         }
-        /*
-        //getchar();
-        IR = (Memory[PC+0] << 24) |
-             (Memory[PC+1] << 16) |
-             (Memory[PC+2] << 8) |
-             (Memory[PC+3]);
-        
-        if (!IR) {
-            //show_reg();
-            break;
-        }
-        else
-            printf("  %d: %08X\n", ++cnt, IR);
-        
-        PC += 4;
-        op = (IR >> 26) & 0x3F;
-        rs = (IR >> 21) & 0x1F;
-        rt = (IR >> 16) & 0x1F;
-        rd = (IR >> 11) & 0x1F;
-        shmt = (IR >> 6) & 0x1F;
-        fun = IR & 0x3F;
-        dat = (short)(IR & 0xFF);
-        adr = (IR & 0x3FFFFFFF) << 2;
-        
-        switch (op) {
-            case 0:
-                switch (fun) {
-                    case 32:    //add
-                        Reg[rd] = (signed)Reg[rs] + (signed)Reg[rt];
-                        break;
-                    case 33:    //addu
-                        Reg[rd] = Reg[rs] + Reg[rt];
-                        break;
-                    case 34:    //sub
-                        Reg[rd] = (signed)Reg[rs] - (signed)Reg[rt];
-                        break;
-                    case 35:    //subu
-                        Reg[rd] = Reg[rs] - Reg[rt];
-                        break;
-                    case 36:    //and
-                        Reg[rd] = Reg[rs] & Reg[rt];
-                        break;
-                    case 37:    //or
-                        Reg[rd] = Reg[rs] | Reg[rt];
-                        break;
-                    case 38:    //xor
-                        Reg[rd] = Reg[rs] ^ Reg[rt];
-                        break;
-                    case 39:    //nor
-                        Reg[rd] = ~(Reg[rs] & Reg[rt]);
-                        break;
-                    case 42:    //slt
-                        Reg[rd] = (signed)Reg[rs] < (signed)Reg[rt] ? 1 : 0;
-                        break;
-                    case 43:    //sltu
-                        Reg[rd] = Reg[rs] < Reg[rt] ? 1 : 0;
-                        break;
-                    case 0:    //sll
-                        Reg[rd] = Reg[rs] << Reg[rt];
-                        break;
-                    case 2:    //srl
-                        Reg[rd] = Reg[rs] >> Reg[rt];
-                        break;
-                    case 3:    //sra
-                        Reg[rd] = (signed)Reg[rs] >> Reg[rt];
-                        break;
-                    case 8:    //jr
-                        PC = Reg[rs];
-                        break;
-                }
-                break;
-            case 4:     //beq
-                if (Reg[rs] == Reg[rt])
-                    PC += (dat << 2);
-                break;
-            case 5:     //bne
-                if (Reg[rs] != Reg[rt])
-                    PC += (dat << 2);
-                break;
-            case 8:     //addi
-                Reg[rt] = (signed)Reg[rs] + dat;
-                break;
-            case 12:     //andi
-                Reg[rt] = Reg[rs] & dat;
-                break;
-            case 13:     //ori
-                Reg[rt] = Reg[rs] | dat;
-                break;
-            case 14:     //xori
-                Reg[rt] = Reg[rs] ^ dat;
-                break;
-            case 32:    //lb
-                Reg[rt] = Memory[Reg[rs]+dat+0];
-                break;
-            case 33:    //lh
-                Reg[rt] = ((Memory[Reg[rs]+dat+0]) << 8) |
-                          Memory[Reg[rs]+dat+1];
-                break;
-            case 35:    //lw
-                Reg[rt] = ((Memory[Reg[rs]+dat+0]) << 24) |
-                          ((Memory[Reg[rs]+dat+1]) << 16) |
-                          ((Memory[Reg[rs]+dat+2]) << 8) |
-                          (Memory[Reg[rs]+dat+3]);
-                break;
-            case 40:    //sb
-                Memory[Reg[rs]+dat+0] = (byte)(Reg[rt] & 0xFF);
-                break;
-            case 41:    //sh
-                Memory[Reg[rs]+dat+0] = (byte)((Reg[rt] >> 8) & 0xFF);
-                Memory[Reg[rs]+dat+1] = (byte)(Reg[rt] & 0xFF);
-                break;
-            case 43:    //sw
-                Memory[Reg[rs]+dat+0] = (byte)((Reg[rt] >> 24) & 0xFF);
-                Memory[Reg[rs]+dat+1] = (byte)((Reg[rt] >> 16) & 0xFF);
-                Memory[Reg[rs]+dat+2] = (byte)((Reg[rt] >> 8) & 0xFF);
-                Memory[Reg[rs]+dat+3] = (byte)(Reg[rt] & 0xFF);
-                break;
-            case 2:     //j
-                PC = PC & 0xFFFFFFFF | adr;
-                break;
-            case 3:     //jal
-                Reg[31] = PC + 4;
-                PC = adr;
-                break;
-            
-            default:
-                printf("Instrution Error!\n");
-                return 1;
-        }*/
     }
     cout << "End of executing...\n";
     return 0;
@@ -528,6 +407,8 @@ int CPU::execute() {
 void CPU::rst(int mode) {
     memset(Reg, 0, sizeof(Reg));
     Reg[29] = DISP_MEM;
+    Reg[30] = Reg[29];
+    Reg[28] = STATIC_MEM;
 
     /* clear screen */
     for (int i = END_MEM - WIDTH*HEIGHT; i < END_MEM; i++) {

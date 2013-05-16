@@ -21,6 +21,7 @@ void compiler::init() {
     li = 0;
     lo = 0;
     list_n = 0;
+    static_mem_ptr = 0;
     instru_set.clear();
 }
 
@@ -30,18 +31,73 @@ int compiler::load(std::string filename) {
     
     if (!fin) return 1;
     while (getline(fin, s)) {
-        instru_set.push_back(s);
+        s = trim(s);
+        if (s != "") {
+            std::cout << s << std::endl;
+            instru_set.push_back(s);
+        }
     }
     return 0;
 }
 
 int compiler::compile() {
-    for (int i = 0; i < instru_set.size(); i++) {
-        strcut(instru_set[i].c_str());
-        if (gen_instru(instru)) {
-            std::cout << "Error in \"" << instru_set[i] << "\"\n";
-            return 1;
+    if (instru_set.size() < 1) return 1;
+    
+    int i = 0;
+    int type = 0;
+    bool label_f;
+    std::string label;
+    std::string str;
+    
+    while (i < instru_set.size()) {
+        str = instru_set[i];
+        
+        if (!i) {
+            if (str == ".data")
+                type = 0;
+            else if (str == ".text")
+                type = 1;
+            else
+                return 1;
         }
+        else {
+            if (str == ".data") {
+                type = 0;
+            }
+            else if (str == ".text") {
+                type = 1;
+            }    
+            else if (str[str.size()-1] == ':') {
+                if (str.size() < 2) return 1;
+                if (type != 1) return 1;
+                
+                label_f = true;
+                label = str;
+            }
+            else if (type == 1) {
+                if (label_f) {
+                    label_f = false;
+                    str = label + str;
+                }
+                
+                strcut(str.c_str(), 1);
+                if (gen_instru(instru)) {
+                    std::cout << "Error in \"" << str << "\"\n";
+                    return 1;
+                }
+            }
+            else if (type == 0) {
+                strcut(str.c_str(), 0);
+                if (gen_data(instru)) {
+                    std::cout << "Error in \"" << str << "\"\n";
+                    return 1;
+                }
+            }
+            else
+                return 1;
+        }
+                
+        i++;
     }
     
     recheck();
@@ -66,6 +122,12 @@ int compiler::save(std::string filename) {
 int compiler::save(dword* commd_set) {
     for (int i = 0; i < list_n; i++)
         commd_set[i] = list[i];
+    return 0;
+}
+
+int compiler::save_static_mem(byte *mem) {
+    for (dword i = 0; i < static_mem_ptr; i++)
+        mem[i] = static_mem[i];
     return 0;
 }
 
@@ -94,31 +156,59 @@ int compiler::is_num(const char *s) {
             return 0;
     return 10;
 }
+
+std::string compiler::trim(const std::string &str) {
+    std::string temp = str;
+    temp = temp.substr(0, temp.find("#"));
+    temp = temp.substr(0, temp.find_last_not_of(" \n\r\t")+1);
+    std::string::size_type pos = temp.find_first_not_of(" \n\r\t");
+    if (pos == std::string::npos) {
+        return temp;
+    }
+    else {
+        return temp.substr(pos);
+    }
+}
+
 /*
 std::string compiler::get_instru(int order) {
     return instru_set[order];
 }
 */
+
 /* the original part */
-int compiler::strcut(const char buf[]) {
+int compiler::strcut(const char buf[], int mode) {
     int i = 0, m = 0, j;
     while (buf[i]) {
-        while (buf[i] == ' ' || buf[i] == 9) i++;
+        while (buf[i] == ' ' || buf[i] == '\t') i++;
         j = 0;
-        while (buf[i] != ' ' && buf[i] != ',' &&
-               buf[i] != '(' && buf[i] != ')' &&
-               buf[i] != ':' && buf[i] != ';' &&
-               buf[i] != '\t' && buf[i] != '\0' &&
-               buf[i] != '\n' && buf[i] != 13) {
-            instru[m][j++] = (buf[i] >= 'A') && (buf[i] <= 'Z') ?
-                             buf[i++] + 32:
-                             buf[i++];
+        if (buf[i] == '"') {
+            i++;
+            while (buf[i] != '\"' && buf[i] != '\0'){
+                instru[m][j++] = (buf[i] >= 'A') && (buf[i] <= 'Z') ?
+                                 buf[i++] + 32:
+                                 buf[i++];
+            }
+            if (buf[i] == '\0') return 1;
         }
+        else {
+            while (buf[i] != ' ' && buf[i] != ',' &&
+                   buf[i] != '(' && buf[i] != ')' &&
+                   buf[i] != ':' && buf[i] != ';' &&
+                   buf[i] != '\t' && buf[i] != '\0' &&
+                   buf[i] != '\n' && buf[i] != 13) {
+                instru[m][j++] = (buf[i] >= 'A') && (buf[i] <= 'Z') ?
+                                 buf[i++] + 32:
+                                 buf[i++];
+            }
+        }
+        
         if (!j) break;
         instru[m][j] = '\0';
-        if (buf[i] == ':') {
+        if (buf[i] == ':' && mode == 1) {
             strcpy(label_in[li].na, instru[m]);
-            label_in[li++].line = list_n;
+            label_in[li].line = list_n;
+            label_in[li++].type = mode ? 't' : 'd';
         }
         else
             m++;
@@ -589,6 +679,12 @@ dword compiler::gen_core(char s[][ARG_LEN]) {
 
 void compiler::recheck() {
     int i, j;
+    
+    printf("lin:\n");
+    for (i = 0; i < li; i++) printf("%d: %s\n", i, label_in[i].na);
+    printf("lout:\n");
+    for (i = 0; i < lo; i++) printf("%d: %d %s\n", i, label_out[i].line, label_out[i].na);
+    
     for (i = 0; i < lo; i++) {
         for (j = 0; j < li; j++) {
             if (!strcmp(label_out[i].na, label_in[j].na)) {
@@ -602,18 +698,170 @@ void compiler::recheck() {
                             ((CPU::USER_MEM + (label_in[j].line << 2)) >> 2) & 0x3FFFFFF;
                         break;
                     case 'P':
-                        list[label_out[i].line] |=
-                            ((CPU::USER_MEM + (label_in[j].line << 2)) >> 16) & 0xFFFF;
+                        switch (label_in[j].type) {
+                            case 't':
+                                list[label_out[i].line] |=
+                                    ((CPU::USER_MEM + (label_in[j].line << 2)) >> 16) & 0xFFFF;
+                                break;
+                            case 'd':
+                                list[label_out[i].line] |=
+                                    (label_in[j].line >> 16) & 0xFFFF;
+                                break;
+                        }
                         break;
                     case 'p':
-                        list[label_out[i].line] |= 
-                            (CPU::USER_MEM + (label_in[j].line << 2)) & 0xFFFF;
+                        switch (label_in[j].type) {
+                            case 't':
+                                list[label_out[i].line] |= 
+                                    (CPU::USER_MEM + (label_in[j].line << 2)) & 0xFFFF;
+                                break;
+                            case 'd':
+                                list[label_out[i].line] |=
+                                    label_in[j].line & 0xFFFF;
+                                break;
+                        }
                         break;
                 }
                 break;
             }
         }
     }
+}
+
+byte compiler::get_static_mem(dword addr) {
+    return static_mem[addr];
+}
+
+dword compiler::get_static_mem_size() {
+    return static_mem_ptr;
+}
+
+dword compiler::string_cpy(byte *dest, const char *src) {
+    dword i = 0, j = 0;
+    
+    while (src[i]) {
+        if (src[i] == '\\') {
+            switch (src[++i]) {
+                case 'a':
+                    dest[j++] = 7;
+                    break;
+                case 'b':
+                    dest[j++] = 8;
+                    break;
+                case 'f':
+                    dest[j++] = 12;
+                    break;
+                case 'n':
+                    dest[j++] = 10;
+                    break;
+                case 'r':
+                    dest[j++] = 13;
+                    break;
+                case 't':
+                    dest[j++] = 9;
+                    break;
+                case 'v':
+                    dest[j++] = 11;
+                    break;
+                case '\\':
+                    dest[j++] = 92;
+                    break;
+                case '\'':
+                    dest[j++] = 39;
+                    break;
+                case '\"':
+                    dest[j++] = 34;
+                    break;
+                case '\0':
+                    dest[j++] = 0;
+                    break;
+                default:
+                    dest[j++] = '\\';
+                    break;
+            }
+            i++;
+        }
+        else {
+            dest[j++] = src[i++];
+        }
+    }
+    return j;
+}
+
+int compiler::gen_data(char s[][ARG_LEN]) {
+    char temp[5][ARG_LEN];
+    
+    if (static_mem_ptr + CPU::STATIC_MEM >= CPU::MAIN_MEM) return 1;
+    
+    if (!strcmp(s[1], ".ascii")) {
+        strcpy(label_in[li].na, s[0]);
+        label_in[li].line = static_mem_ptr + CPU::STATIC_MEM;
+        label_in[li++].type = 'd';
+        
+        static_mem_ptr += string_cpy(static_mem+static_mem_ptr, s[2]);
+    }
+    
+    else if (!strcmp(s[1], ".asciiz")) {
+        strcpy(label_in[li].na, s[0]);
+        label_in[li].line = static_mem_ptr + CPU::STATIC_MEM;
+        label_in[li++].type = 'd';
+        
+        static_mem_ptr += string_cpy(static_mem+static_mem_ptr, s[2]);
+        static_mem[static_mem_ptr++] = 0;
+    }
+    
+    else if (!strcmp(s[1], ".byte")) {
+        strcpy(label_in[li].na, s[0]);
+        label_in[li].line = static_mem_ptr + CPU::STATIC_MEM;
+        label_in[li++].type = 'd';
+        
+        strcpy(temp[0], s[2]);
+        static_mem[static_mem_ptr] = (byte)immed(temp[0], 0xFF, 0);
+        static_mem_ptr += 1;
+    }
+    
+    else if (!strcmp(s[1], ".halfword")) {
+        strcpy(label_in[li].na, s[0]);
+        label_in[li].line = static_mem_ptr + CPU::STATIC_MEM;
+        label_in[li++].type = 'd';
+        
+        strcpy(temp[0], s[2]);
+        word t = (word)immed(temp[0], 0xFFFF, 0);
+        static_mem[static_mem_ptr] = (t >> 8) & 0xFF;
+        static_mem[static_mem_ptr+1] = t & 0xFF;
+        static_mem_ptr += 2;
+    }
+    
+    else if (!strcmp(s[1], ".word")) {
+        strcpy(label_in[li].na, s[0]);
+        label_in[li].line = static_mem_ptr + CPU::STATIC_MEM;
+        label_in[li++].type = 'd';
+        
+        strcpy(temp[0], s[2]);
+        dword t = (dword)immed(temp[0], 0xFFFFFFFF, 0);
+        static_mem[static_mem_ptr] = (t >> 24) & 0xFF;
+        static_mem[static_mem_ptr+1] = (t >> 16) & 0xFF;
+        static_mem[static_mem_ptr+2] = (t >> 8) & 0xFF;
+        static_mem[static_mem_ptr+3] = t & 0xFF;
+        static_mem_ptr += 4;
+    }
+    
+    else if (!strcmp(s[1], ".space")) {
+        strcpy(label_in[li].na, s[0]);
+        label_in[li].line = static_mem_ptr + CPU::STATIC_MEM;
+        label_in[li++].type = 'd';
+        
+        strcpy(temp[0], s[2]);
+        dword len = (dword)immed(temp[0], 0xFFFFFFFF, 0);
+        for (dword i = static_mem_ptr; i < static_mem_ptr+len; i++)
+            static_mem[i] = 0;
+        static_mem_ptr += len;
+    }
+    
+    else
+        return 1;
+    
+    return 0;
 }
 
 int compiler::gen_instru(char s[][ARG_LEN]) {
@@ -662,20 +910,21 @@ int compiler::gen_instru(char s[][ARG_LEN]) {
         strcpy(temp[0], "ori");
         strcpy(temp[1], s[1]);
         strcpy(temp[2], s[1]);
+        strcpy(temp[3], "0");
         list[list_n++] = gen_core(temp);
     }
     
     else if (!strcmp(s[0], "li")) {
-        dword addr = atom(s[2]);
+        dword data = atom(s[2]);
         strcpy(temp[0], "lui");
         strcpy(temp[1], s[1]);
-        itoa(addr >> 16, temp[2], 10);
+        itoa(data >> 16, temp[2], 10);
         list[list_n++] = gen_core(temp);
         
         strcpy(temp[0], "ori");
         strcpy(temp[1], s[1]);
         strcpy(temp[2], s[1]);
-        itoa(addr & 0xFFFF, temp[3], 10);
+        itoa(data & 0xFFFF, temp[3], 10);
         list[list_n++] = gen_core(temp);
     }
     

@@ -18,7 +18,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->memoryTabWidget->hide();
     //this->setFixedHeight(this->height());
     //this->setFixedSize(this->width(), this->height());
-    this->layout()->setSizeConstraint(QLayout::SetFixedSize);
+    this->layout()->setSizeConstraint(QLayout::SetDefaultConstraint);
 
     connect(ui->aboutAction, SIGNAL(triggered()), this, SLOT(about()));
     connect(ui->resetButton, SIGNAL(clicked()), this, SLOT(resetAll()));
@@ -33,6 +33,7 @@ MainWindow::MainWindow(QWidget *parent) :
     commd_model = NULL;
     Reg_model = NULL;
     mainmem_model = NULL;
+    staticmem_model = NULL;
     viewmem_model = NULL;
 
     resetAll(1);
@@ -59,6 +60,9 @@ void MainWindow::resetAll(int mode) {
     if (mode) {
         setTableView(ui->main_memTableView, &mainmem_model, myCPU.MAIN_MEM, myCPU.DISP_MEM,
                      myCPU.getMem(0), myCPU.MAIN_MEM, 1);
+
+        setTableView(ui->static_memTableView, &staticmem_model, myCPU.STATIC_MEM, myCPU.MAIN_MEM,
+                     myCPU.getMem(0), myCPU.STATIC_MEM, 1);
     }
     setTableView(ui->view_memTableView, &viewmem_model, myCPU.DISP_MEM, myCPU.END_MEM,
                  myCPU.getMem(0), myCPU.DISP_MEM, 1);
@@ -204,14 +208,23 @@ int MainWindow::loadFile(QString fileName) {
         return 1;
 
     mycompiler.compile();
-    dword* mem;
-    mem = (dword*)malloc(sizeof(dword) * mycompiler.get_commd_num());
+    dword* mem = new dword[mycompiler.get_commd_num()];
     mycompiler.save(mem);
     mycompiler.print();
 
 
     // CPU load commd
     myCPU.boot(mem, mycompiler.get_commd_num());
+
+    // CPU load static memory
+    byte *static_mem = new byte[mycompiler.get_static_mem_size()];
+    mycompiler.save_static_mem(static_mem);
+    myCPU.load_static_data(static_mem, mycompiler.get_static_mem_size());
+
+    delete [] static_mem;
+
+    setTableView(ui->static_memTableView, &staticmem_model, myCPU.STATIC_MEM, myCPU.MAIN_MEM,
+                 myCPU.getMem(0), myCPU.STATIC_MEM, 1);
 
 
     // decompile
@@ -329,10 +342,15 @@ int MainWindow::steprun() {
                 emit modified(getDispContent());
             }
             else
-                if (myCPU.MAIN_MEM <= addr && addr < myCPU.DISP_MEM) {
-                    setTableView(ui->main_memTableView, &mainmem_model, myCPU.MAIN_MEM, myCPU.DISP_MEM,
+                if (myCPU.STATIC_MEM <= addr && addr < myCPU.MAIN_MEM) {
+                    setTableView(ui->static_memTableView, &staticmem_model, myCPU.STATIC_MEM, myCPU.MAIN_MEM,
                                  myCPU.getMem(0), addr);
                 }
+                else
+                    if (myCPU.MAIN_MEM <= addr && addr < myCPU.DISP_MEM) {
+                        setTableView(ui->main_memTableView, &mainmem_model, myCPU.MAIN_MEM, myCPU.DISP_MEM,
+                                     myCPU.getMem(0), addr);
+                    }
         }
 
         return 0;
@@ -404,7 +422,7 @@ void MainWindow::setTableView(QTableView *tableview, QStandardItemModel **view_m
             (*view_model)->item(row, 1)->setTextAlignment(Qt::AlignCenter);
 
             str = QString((*view_model)->item(row, 2)->text());
-            str[col*2] = QChar(mem_ptr[i]);
+            str[col*2] = (mem_ptr[i] > 31 && mem_ptr[i] < 127) ? QChar(mem_ptr[i]) : QChar('.');
             (*view_model)->setItem(row, 2, new QStandardItem( str ));
             (*view_model)->item(row, 2)->setTextAlignment(Qt::AlignCenter);
         }
@@ -435,7 +453,8 @@ void MainWindow::setTableView(QTableView *tableview, QStandardItemModel **view_m
 
         t.clear();
         for (int j = 0; j < 4; j++) {
-            t << QChar(mem_ptr[addr_st+i+j]);
+            t << ( (mem_ptr[addr_st+i+j] > 31 && mem_ptr[addr_st+i+j] < 127) ?
+                        QChar(mem_ptr[addr_st+i+j]) : QChar('.') );
         }
         model->setItem(row, 2, new QStandardItem( t.join(" ") ));
         model->item(row, 2)->setTextAlignment(Qt::AlignCenter);

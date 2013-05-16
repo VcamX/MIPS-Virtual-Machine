@@ -2,6 +2,7 @@
 #define COMPILER_H
 
 #include "data_type.h"
+#include "CPU.h"
 
 #include <string>
 #include <vector>
@@ -14,7 +15,7 @@ public:
     compiler(std::string, dword* commd_set);
     ~compiler();
     
-    enum { LABEL_NUM = 100, LABEL_LEN = 50, COMMD_NUM = 100, PARA_NUM = 10, ARG_LEN = 100 };
+    enum { LABEL_NUM = 1000, LABEL_LEN = 100, COMMD_NUM = 2000, PARA_NUM = 50, ARG_LEN = 200 };
     
     int load(std::string filename);
     int compile();
@@ -26,6 +27,10 @@ public:
     //std::string get_instru(int order);
     
     void print();
+    
+    byte get_static_mem(dword addr);
+    int save_static_mem(byte *mem);
+    dword get_static_mem_size();
 
 private:
     typedef struct {
@@ -43,15 +48,23 @@ private:
     dword list[COMMD_NUM];
     int list_n;
     
-    int strcut(const char buf[]);
+    byte static_mem[CPU::MAIN_MEM - CPU::STATIC_MEM];
+    dword static_mem_ptr;
+    
+    int strcut(const char buf[], int mode);
     dword regX(char s[]);
     void recheck();
     dword immed_addr(char s[]);
     dword gen_core(char s[][ARG_LEN]);
     int gen_instru(char s[][ARG_LEN]);
+    int gen_data(char s[][ARG_LEN]);
     dword immed(char s[], dword mask, int div);
     dword atom(char *s);
     int is_num(const char *s);
+    
+    // tools
+    dword string_cpy(byte *dest, const char *src);
+    std::string trim(const std::string &str);
 };
 
 #endif // COMPILER_H
