@@ -35,6 +35,7 @@ int compiler::load(std::string filename) {
         if (s != "") {
             std::cout << s << std::endl;
             instru_set.push_back(s);
+            s = "";
         }
     }
     return 0;

@@ -475,7 +475,7 @@ void MainWindow::setTableView(QTableView *tableview, QStandardItemModel **view_m
 void MainWindow::about() {
     QMessageBox::about(this, tr("About MIPS Virtual Machine"),
                        tr("<h2>MIPS Virtual Machine v1.0</h2>"
-                          "<p>Copyright &copy; 2013<p>"
+                          "<p>Copyright &copy; 2013 WJR<p>"
                           "MIPS Virtual Machine is a software implemented abstraction of the underlying MIPS hardware,"
                           "It emulates the MIPS-based machine and implement many basic instrution and psedo-instrution."));
 }
