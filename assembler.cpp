@@ -1,4 +1,4 @@
-#include "compiler.h"
+#include "assembler.h"
 #include "CPU.h"
 
 #include <iostream>
@@ -9,15 +9,21 @@
 #include <cctype>
 
 /* the wrapped part */
-compiler::compiler() {
+assembler::assembler() {
     init();
 }
-
-compiler::~compiler() {
+/*
+assembler::assembler(std::string filename) {
+    init();
+    load(filename);
+    assemble();
+}
+*/
+assembler::~assembler() {
     
 }
 
-void compiler::init() {
+void assembler::init() {
     li = 0;
     lo = 0;
     list_n = 0;
@@ -25,23 +31,22 @@ void compiler::init() {
     instru_set.clear();
 }
 
-int compiler::load(std::string filename) {
+int assembler::load(std::string filename) {
     std::ifstream fin(filename.c_str());
     std::string s;
     
     if (!fin) return 1;
     while (getline(fin, s)) {
         s = trim(s);
-        if (s != "") {
-            std::cout << s << std::endl;
+        if (s != "")
+        {
             instru_set.push_back(s);
-            s = "";
         }
     }
     return 0;
 }
 
-int compiler::compile() {
+int assembler::assemble() {
     if (instru_set.size() < 1) return 1;
     
     int i = 0;
@@ -58,22 +63,31 @@ int compiler::compile() {
                 type = 0;
             else if (str == ".text")
                 type = 1;
-            else
+            else if (str.find(".globl") == std::string::npos)
                 return 1;
         }
         else {
-            if (str == ".data") {
+            if (str == ".data")
+            {
                 type = 0;
             }
-            else if (str == ".text") {
+            else if (str == ".text")
+            {
                 type = 1;
-            }    
-            else if (str[str.size()-1] == ':') {
+            }
+            else if (str.find(".globl") != std::string::npos)
+            {
+            }
+            else if (str[str.size()-1] == ':')
+            {
                 if (str.size() < 2) return 1;
                 if (type != 1) return 1;
                 
                 label_f = true;
                 label = str;
+                
+                if (i == instru_set.size()-1)
+                    instru_set.push_back("nop");
             }
             else if (type == 1) {
                 if (label_f) {
@@ -81,15 +95,13 @@ int compiler::compile() {
                     str = label + str;
                 }
                 
-                strcut(str.c_str(), 1);
-                if (gen_instru(instru)) {
+                if (strcut(str.c_str(), 1) || gen_instru(instru)) {
                     std::cout << "Error in \"" << str << "\"\n";
                     return 1;
                 }
             }
             else if (type == 0) {
-                strcut(str.c_str(), 0);
-                if (gen_data(instru)) {
+                if (strcut(str.c_str(), 0) || gen_data(instru)) {
                     std::cout << "Error in \"" << str << "\"\n";
                     return 1;
                 }
@@ -97,7 +109,7 @@ int compiler::compile() {
             else
                 return 1;
         }
-                
+        
         i++;
     }
     
@@ -106,7 +118,10 @@ int compiler::compile() {
     return 0;
 }
 
-int compiler::save(std::string filename) {
+/*
+ * save machine code into binary file
+ */
+int assembler::save(std::string filename) {
     FILE* f;
     f = fopen(filename.c_str(), "wb");
     for (int i = 0; i < list_n; i++) {
@@ -120,45 +135,59 @@ int compiler::save(std::string filename) {
     return 0;
 }
 
-int compiler::save(dword* commd_set) {
+/*
+ * save machine code into memory
+ */
+int assembler::save(dword* commd_set) {
     for (int i = 0; i < list_n; i++)
         commd_set[i] = list[i];
     return 0;
 }
 
-int compiler::save_static_mem(byte *mem) {
+int assembler::save_static_mem(byte *mem) {
     for (dword i = 0; i < static_mem_ptr; i++)
         mem[i] = static_mem[i];
     return 0;
 }
 
-void compiler::print() {
-    printf("\n------- compiler result -------\n");
+/*
+ * print assembled machine code
+ */
+void assembler::print() {
+    printf("\n------- assembler result -------\n");
+    
+    
+    printf("\ninstrutions:\n");
     for (int i = 0; i < instru_set.size(); i++) {
-        std::cout << instru_set[i] << "\n\t\t\t";
+        std::cout << instru_set[i] << std::endl;
+    }
+        
+    printf("\nuser_mem:\n");
+    for (dword i = 0; i < list_n; i++)
+    {
         printf("%08X\n", list[i]);
     }
-    printf("------- compiler result -------\n");
+    
+    printf("\nstatic_mem:\n");
+    for (dword i = 0; i < static_mem_ptr; i+=4)
+    {
+        dword temp = 0;
+        for (dword j = i; j < i+4; j++)
+        {
+            temp <<= 8;
+            temp |= j < static_mem_ptr ? static_mem[j] : 0;
+        }
+        printf("%08X\n", temp);
+    }
+    
+    printf("\n------- assembler result -------\n");
 }
 
-int compiler::get_commd_num() {
+int assembler::get_commd_num() {
     return list_n;
 }
 
-int compiler::is_num(const char *s) {
-    int len = strlen(s);
-    int idx = s[0] == '-' || s[0] == '+';
-    if (len > 2 && s[idx] == '0' && (s[idx+1] == 'X' || s[idx+1] == 'x'))
-        return 16;
-    if (len > 1 && s[idx] == '0')
-        return 8;
-    for (int i = idx; i < len; i++)
-        if (!(s[i] >= '0' && s[i] <= '9'))
-            return 0;
-    return 10;
-}
-
-std::string compiler::trim(const std::string &str) {
+std::string assembler::trim(const std::string &str) {
     std::string temp = str;
     temp = temp.substr(0, temp.find("#"));
     temp = temp.substr(0, temp.find_last_not_of(" \n\r\t")+1);
@@ -171,54 +200,58 @@ std::string compiler::trim(const std::string &str) {
     }
 }
 
-/*
-std::string compiler::get_instru(int order) {
-    return instru_set[order];
-}
-*/
-
-/* the original part */
-int compiler::strcut(const char buf[], int mode) {
+int assembler::strcut(const char buf[], int mode) {
     int i = 0, m = 0, j;
     while (buf[i]) {
         while (buf[i] == ' ' || buf[i] == '\t') i++;
         j = 0;
-        if (buf[i] == '"') {
+        if (buf[i] == '\"')
+        {   //for static data
             i++;
             while (buf[i] != '\"' && buf[i] != '\0'){
+                instru[m][j++] = buf[i++];
+                /*
                 instru[m][j++] = (buf[i] >= 'A') && (buf[i] <= 'Z') ?
                                  buf[i++] + 32:
                                  buf[i++];
+                */
             }
             if (buf[i] == '\0') return 1;
         }
-        else {
+        else
+        {   //for normal statement
             while (buf[i] != ' ' && buf[i] != ',' &&
                    buf[i] != '(' && buf[i] != ')' &&
                    buf[i] != ':' && buf[i] != ';' &&
                    buf[i] != '\t' && buf[i] != '\0' &&
                    buf[i] != '\n' && buf[i] != 13) {
+                       instru[m][j++] = buf[i++];
+                /*
                 instru[m][j++] = (buf[i] >= 'A') && (buf[i] <= 'Z') ?
                                  buf[i++] + 32:
                                  buf[i++];
+                */
             }
         }
+        if (!j) return 1;
         
-        if (!j) break;
         instru[m][j] = '\0';
-        if (buf[i] == ':' && mode == 1) {
+        if (buf[i] == ':' && mode == 1)
+        {
             strcpy(label_in[li].na, instru[m]);
             label_in[li].line = list_n;
-            label_in[li++].type = mode ? 't' : 'd';
+            label_in[li++].type = 't'; //.text
         }
         else
             m++;
-        i++;
+        
+        if (buf[i]) i++;
     }
-    return m;
+    return 0;
 }
 
-dword compiler::regX(char s[]) {
+dword assembler::regX(char s[])
+{
     dword reg;
     switch (s[1]) {
         case 'z':
@@ -244,7 +277,7 @@ dword compiler::regX(char s[]) {
             break;
         case 't':
             if (s[2] - '0' >= 8)
-                reg = s[2] - '0' + 24;
+                reg = s[2] - '8' + 24;
             else
                 reg = s[2] - '0' + 8;
             break;
@@ -264,15 +297,32 @@ dword compiler::regX(char s[]) {
     return (reg & 31);
 }
 
+int assembler::is_num(const char *s) {
+    int len = strlen(s);
+    int idx = s[0] == '-' || s[0] == '+';
+    if  (len == 3 && s[0] == '\'' && s[2] == '\'')
+        return -1;
+    if (len > 2 && s[idx] == '0' && (s[idx+1] == 'X' || s[idx+1] == 'x'))
+        return 16;
+    if (len > 1 && s[idx] == '0')
+        return 8;
+    for (int i = idx; i < len; i++)
+        if (!(s[i] >= '0' && s[i] <= '9'))
+            return 0;
+    return 10;
+}
 
-dword compiler::atom(char* s) {
-    dword u = 0, base = is_num(s), i;
+dword assembler::atom(char* s) {
+    dword u = 0, i;
+    int base = is_num(s);
     
-    if (!base) return 0;
     i = (s[0] == '-' || s[0] == '+');
     switch (base) {
+        case -1: return (dword)s[1];
         case 8: i++; break;
         case 16: i+=2; break;
+        case 10: break;
+        default: return 0;
     }
     for (; s[i] != '\0'; i++){
         if (base == 16 && toupper(s[i]) >= 'A' && toupper(s[i]) <= 'F')
@@ -287,7 +337,7 @@ dword compiler::atom(char* s) {
     return u;
 }
 
-dword compiler::immed(char s[], dword mask, int div) {
+dword assembler::immed(char s[], dword mask, int div) {
     int  p = 0;
     dword r = 0;
     char ch = 0;
@@ -317,7 +367,7 @@ dword compiler::immed(char s[], dword mask, int div) {
     return r & mask;
 }
 
-dword compiler::immed_addr(char s[]) {
+dword assembler::immed_addr(char s[]) {
     dword r;
     
     r = (atom(s) - 4*list_n - 4);
@@ -326,7 +376,7 @@ dword compiler::immed_addr(char s[]) {
     return r & 65535;
 }
 
-dword compiler::gen_core(char s[][ARG_LEN]) {
+dword assembler::gen_core(char s[][PARA_LEN]) {
     if (!strcmp(s[0], "add"))
         return (regX(s[2]) << 21) |
                (regX(s[3]) << 16) |
@@ -678,13 +728,18 @@ dword compiler::gen_core(char s[][ARG_LEN]) {
         return -1;
 }
 
-void compiler::recheck() {
+void assembler::recheck() {
     int i, j;
     
+    /*
     printf("lin:\n");
-    for (i = 0; i < li; i++) printf("%d: %s\n", i, label_in[i].na);
+    for (i = 0; i < li; i++)
+        printf("%d: %s\n", i, label_in[i].na);
+        
     printf("lout:\n");
-    for (i = 0; i < lo; i++) printf("%d: %d %s\n", i, label_out[i].line, label_out[i].na);
+    for (i = 0; i < lo; i++)
+        printf("%d: %d %s\n", i, label_out[i].line, label_out[i].na);
+    */
     
     for (i = 0; i < lo; i++) {
         for (j = 0; j < li; j++) {
@@ -729,19 +784,25 @@ void compiler::recheck() {
     }
 }
 
-byte compiler::get_static_mem(dword addr) {
+/*
+ * static data process
+ */
+byte assembler::get_static_mem(dword addr) {
     return static_mem[addr];
 }
 
-dword compiler::get_static_mem_size() {
+dword assembler::get_static_mem_size() {
     return static_mem_ptr;
 }
 
-dword compiler::string_cpy(byte *dest, const char *src) {
+dword assembler::string_cpy(byte *dest, const char *src)
+{
     dword i = 0, j = 0;
     
-    while (src[i]) {
-        if (src[i] == '\\') {
+    while (src[i])
+    {
+        if (src[i] == '\\')
+        {   // process escape character
             switch (src[++i]) {
                 case 'a':
                     dest[j++] = 7;
@@ -782,15 +843,16 @@ dword compiler::string_cpy(byte *dest, const char *src) {
             }
             i++;
         }
-        else {
+        else
+        {
             dest[j++] = src[i++];
         }
     }
     return j;
 }
 
-int compiler::gen_data(char s[][ARG_LEN]) {
-    char temp[5][ARG_LEN];
+int assembler::gen_data(char s[][PARA_LEN]) {
+    char temp[5][PARA_LEN];
     
     if (static_mem_ptr + CPU::STATIC_MEM >= CPU::MAIN_MEM) return 1;
     
@@ -865,8 +927,8 @@ int compiler::gen_data(char s[][ARG_LEN]) {
     return 0;
 }
 
-int compiler::gen_instru(char s[][ARG_LEN]) {
-    char temp[5][ARG_LEN];
+int assembler::gen_instru(char s[][PARA_LEN]) {
+    char temp[5][PARA_LEN];
     
     /* Pseudo-type */
     if (!strcmp(s[0], "move")) {
@@ -916,7 +978,7 @@ int compiler::gen_instru(char s[][ARG_LEN]) {
     }
     
     else if (!strcmp(s[0], "li")) {
-        dword data = immed(s[2], 0xFFFFFFFF, 0);
+        dword data = atom(s[2]);
         strcpy(temp[0], "lui");
         strcpy(temp[1], s[1]);
         itoa(data >> 16, temp[2], 10);
@@ -1047,7 +1109,7 @@ int compiler::gen_instru(char s[][ARG_LEN]) {
         strcpy(temp[0], "sll");
         strcpy(temp[1], s[2]);
         strcpy(temp[2], s[2]);
-        //sprintf(temp[3], "%d", t);
+        sprintf(temp[3], "%d", t);
         list[list_n++] = gen_core(temp);
 
         strcpy(temp[0], "or");

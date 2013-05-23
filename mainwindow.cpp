@@ -129,7 +129,7 @@ void MainWindow::setReg(const dword Reg[], int size, int mode) {
     model->setHeaderData(3 ,Qt::Horizontal, tr("Content"));
 
     QString temp;
-    decompiler t;
+    deassembler t;
     char s[5];
     for (int i = 0; i < (size-2)/2; i++) {
         t.regName(s, (dword)i);
@@ -202,24 +202,24 @@ int MainWindow::loadFile(QString fileName) {
 
     resetAll(1);
 
-    // compile
-    compiler mycompiler;
-    if (mycompiler.load(fileName.toStdString()))
+    // assemble
+    assembler myassembler;
+    if (myassembler.load(fileName.toStdString()))
         return 1;
 
-    mycompiler.compile();
-    dword* mem = new dword[mycompiler.get_commd_num()];
-    mycompiler.save(mem);
-    mycompiler.print();
+    myassembler.assemble();
+    dword* mem = new dword[myassembler.get_commd_num()];
+    myassembler.save(mem);
+    myassembler.print();
 
 
     // CPU load commd
-    myCPU.boot(mem, mycompiler.get_commd_num());
+    myCPU.boot(mem, myassembler.get_commd_num());
 
     // CPU load static memory
-    byte *static_mem = new byte[mycompiler.get_static_mem_size()];
-    mycompiler.save_static_mem(static_mem);
-    myCPU.load_static_data(static_mem, mycompiler.get_static_mem_size());
+    byte *static_mem = new byte[myassembler.get_static_mem_size()];
+    myassembler.save_static_mem(static_mem);
+    myCPU.load_static_data(static_mem, myassembler.get_static_mem_size());
 
     delete [] static_mem;
 
@@ -227,12 +227,12 @@ int MainWindow::loadFile(QString fileName) {
                  myCPU.getMem(0), myCPU.STATIC_MEM, 1);
 
 
-    // decompile
-    decompiler mydecompiler;
-    mydecompiler.load(mem, (dword)mycompiler.get_commd_num());
-    mydecompiler.print();
-    //std::cout << "compiler: " << mycompiler.get_commd_num() << std::endl;
-    //std::cout << "decompiler: " << mydecompiler.get_instru_num() << std::endl;
+    // deassemble
+    deassembler mydeassembler;
+    mydeassembler.load(mem, (dword)myassembler.get_commd_num());
+    mydeassembler.print();
+    //std::cout << "assembler: " << myassembler.get_commd_num() << std::endl;
+    //std::cout << "deassembler: " << mydeassembler.get_instru_num() << std::endl;
 
 
     QStandardItemModel* model = new QStandardItemModel;
@@ -243,11 +243,11 @@ int MainWindow::loadFile(QString fileName) {
 
     int i;
     QString temp;
-    for (i = 0; i < mydecompiler.get_instru_num(); i++) {
+    for (i = 0; i < mydeassembler.get_instru_num(); i++) {
         model->setItem(i, 0, new QStandardItem(dword2QString(myCPU.USER_MEM+i*4)));
         model->item(i, 0)->setTextAlignment(Qt::AlignCenter);
 
-        temp.sprintf("%s", mydecompiler.get_instru(i).c_str());
+        temp.sprintf("%s", mydeassembler.get_instru(i).c_str());
         model->setItem(i, 1, new QStandardItem(temp));
         model->item(i, 1)->setTextAlignment(Qt::AlignCenter);
 

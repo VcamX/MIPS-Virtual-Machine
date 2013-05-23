@@ -10,8 +10,8 @@
 #include <QStandardItemModel>
 
 #include "CPU.h"
-#include "compiler.h"
-#include "decompiler.h"
+#include "assembler.h"
+#include "deassembler.h"
 #include "screendialog.h"
 
 namespace Ui {

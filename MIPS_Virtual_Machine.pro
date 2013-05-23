@@ -3,20 +3,20 @@ OTHER_FILES +=
 HEADERS += \
     screendialog.h \
     mainwindow.h \
-    decompiler.h \
     data_type.h \
-    compiler.h \
     CPU.h \
-    loadingdialog.h
+    loadingdialog.h \
+    assembler.h \
+    deassembler.h
 
 SOURCES += \
     screendialog.cpp \
     mainwindow.cpp \
     main.cpp \
-    decompiler.cpp \
-    compiler.cpp \
     CPU.cpp \
-    loadingdialog.cpp
+    loadingdialog.cpp \
+    deassembler.cpp \
+    assembler.cpp
 
 FORMS += \
     screendialog.ui \

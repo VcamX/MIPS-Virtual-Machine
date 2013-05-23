@@ -136,6 +136,10 @@ int CPU::execute_single() {
     switch (op) {
         case 0:
             switch (fun) {
+                case 12:    //syscall
+
+                    break;
+
                 case 16:    //mfhi
                     Reg[rd] = Reg[REG_HI];
                     break;
@@ -388,9 +392,6 @@ int CPU::execute_single() {
 }
 
 int CPU::execute() {
-    //int op, rs, rt, rd, dat, adr, shmt, fun;
-    //int cnt = 0;
-    
     cout << "\nStart executing...\n";
     for (;;) {
         switch (execute_single()) {

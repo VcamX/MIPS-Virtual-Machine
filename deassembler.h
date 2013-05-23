@@ -1,15 +1,15 @@
-#ifndef DECOMPILER_H
-#define DECOMPILER_H
+#ifndef DEASSEMBLER_H
+#define DEASSEMBLER_H
 
 #include "data_type.h"
 
 #include <vector>
 #include <string>
 
-class decompiler {
+class deassembler {
 public:
-    decompiler();
-    ~decompiler();
+    deassembler();
+    ~deassembler();
     
     int load(std::string filename, int mode = 0);
     int load(const dword* mem, dword size, int mode = 0);
@@ -25,4 +25,4 @@ private:
     std::vector<std::string> instru_set;
 };
 
-#endif // DECOMPILER_H
+#endif // DEASSEMBLER_H
