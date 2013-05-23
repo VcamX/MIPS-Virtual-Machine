@@ -22,7 +22,7 @@
     <item>
      <widget class="QGroupBox" name="CodeGroupBox">
       <property name="title">
-       <string>Code</string>
+       <string>Text Segment</string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
