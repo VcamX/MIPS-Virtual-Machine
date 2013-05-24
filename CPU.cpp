@@ -176,7 +176,10 @@ int CPU::execute_single() {
                                 syscall_flag = false;
                                 break;
                             case 1:
-                                PC = Memory[1];
+                                PC = Memory[4] << 24;
+                                PC |= Memory[5] << 16;
+                                PC |= Memory[6] << 8;
+                                PC |= Memory[7];
                                 break;
                             case 2:
                                 syscall_flag = false;
@@ -187,7 +190,10 @@ int CPU::execute_single() {
                                 //PC = Memory[3];
                                 break;
                             case 4:
-                                PC = Memory[16];
+                                PC = Memory[16] << 24;
+                                PC |= Memory[17] << 16;
+                                PC |= Memory[18] << 8;
+                                PC |= Memory[19];
                                 break;
                             case 5:
                                 syscall_flag = false;

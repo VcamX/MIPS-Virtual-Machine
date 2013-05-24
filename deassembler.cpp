@@ -17,11 +17,11 @@ deassembler::~deassembler() {
     
 }
 
-int deassembler::load(std::string filename, int mode) {
+int deassembler::load(std::string filename, dword init_pc, int mode) {
     FILE* f;
     byte mem[5];
     char s[50];
-    dword cnt = 0, pc = CPU::USER_MEM, code;
+    dword cnt = 0, pc = init_pc, code;
     std::string str;
     
     if (mode == 1) printf("\n----- deassembler test mode -----\n");
@@ -52,13 +52,13 @@ int deassembler::load(std::string filename, int mode) {
     return 0;
 }
 
-int deassembler::load(const dword* mem, dword size, int mode) {
+int deassembler::load(const dword* mem, dword size, dword init_pc, int mode) {
     char s[50];
     std::string str;
     
     if (mode == 1) printf("\n----- deassembler test mode -----\n");
     for (dword i = 0; i < size; i++) {
-        if (trans(s, mem[i], i*4 + CPU::USER_MEM))
+        if (trans(s, mem[i], i*4 + init_pc))
         {
             if (mode == 1) printf("%08X: Unknown instruction!\n", mem[i]);
             str = "Unknown instruction";

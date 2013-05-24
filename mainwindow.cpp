@@ -278,7 +278,7 @@ int MainWindow::loadFile(QString fileName) {
 
     // deassemble
     deassembler mydeassembler;
-    mydeassembler.load(mem, myassembler.get_commd_num());
+    mydeassembler.load(mem, myassembler.get_commd_num(), CPU::USER_MEM);
     //mydeassembler.print();
     //std::cout << "assembler: " << myassembler.get_commd_num() << std::endl;
     //std::cout << "deassembler: " << mydeassembler.get_instru_num() << std::endl;
