@@ -427,7 +427,11 @@ dword assembler::immed(char s[], dword mask, int div) {
     dword r = 0;
     char ch = 0;
     char *s1 = NULL;
-    
+
+    /* char-type immediate */
+    if  (strlen(s) == 3 && s[0] == '\'' && s[2] == '\'')
+        return (dword)s[1];
+
     /* split */
     while (s[p]) {
         if ((s[p] == '+' && p) ||
@@ -1048,7 +1052,7 @@ int assembler::gen_instru(char s[][PARA_LEN]) {
     }
     
     else if (!strcmp(s[0], "not")) {
-        strcpy(temp[0], "not");
+        strcpy(temp[0], "nor");
         strcpy(temp[1], s[1]);
         strcpy(temp[2], s[2]);
         strcpy(temp[3], "$zero");

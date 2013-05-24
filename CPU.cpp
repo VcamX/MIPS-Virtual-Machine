@@ -281,7 +281,7 @@ int CPU::execute_single() {
                         break;
 
                     case 39:    //nor
-                        Reg[rd] = ~(Reg[rs] & Reg[rt]);
+                        Reg[rd] = ~(Reg[rs] | Reg[rt]);
                         break;
 
                     case 42:    //slt

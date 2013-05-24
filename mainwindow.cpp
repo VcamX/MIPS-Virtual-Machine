@@ -57,6 +57,7 @@ void MainWindow::resetAll(int mode) {
 
     setReg(myCPU.getReg(), myCPU.REGNUM, 1);
 
+    /*
     if (mode) {
         setTableView(ui->main_memTableView, &mainmem_model, myCPU.MAIN_MEM, myCPU.DISP_MEM,
                      myCPU.getMem(0), myCPU.MAIN_MEM, 1);
@@ -64,6 +65,16 @@ void MainWindow::resetAll(int mode) {
         setTableView(ui->static_memTableView, &staticmem_model, myCPU.STATIC_MEM, myCPU.MAIN_MEM,
                      myCPU.getMem(0), myCPU.STATIC_MEM, 1);
     }
+    setTableView(ui->view_memTableView, &viewmem_model, myCPU.DISP_MEM, myCPU.END_MEM,
+                 myCPU.getMem(0), myCPU.DISP_MEM, 1);
+    */
+
+    setTableView(ui->main_memTableView, &mainmem_model, myCPU.MAIN_MEM, myCPU.DISP_MEM,
+                 myCPU.getMem(0), myCPU.MAIN_MEM, 1);
+
+    setTableView(ui->static_memTableView, &staticmem_model, myCPU.STATIC_MEM, myCPU.MAIN_MEM,
+                 myCPU.getMem(0), myCPU.STATIC_MEM, 1);
+
     setTableView(ui->view_memTableView, &viewmem_model, myCPU.DISP_MEM, myCPU.END_MEM,
                  myCPU.getMem(0), myCPU.DISP_MEM, 1);
 
@@ -323,8 +334,8 @@ int MainWindow::loadFile(QString fileName) {
 
     commd_model = model;
     ui->codeTableView->setModel(commd_model);
-    ui->codeTableView->resizeColumnsToContents();
-    ui->codeTableView->resizeRowsToContents();
+    //ui->codeTableView->resizeColumnsToContents();
+    //ui->codeTableView->resizeRowsToContents();
     ui->codeTableView->horizontalHeader()->setResizeMode(QHeaderView::Fixed);
     ui->codeTableView->horizontalHeader()->setResizeMode(1, QHeaderView::Stretch);
     //ui->codeTableView->selectRow(0);
@@ -384,6 +395,7 @@ int MainWindow::steprun() {
         setReg(myCPU.getReg(), myCPU.REGNUM);
 
         if (myCPU.is_mem_modified()) {
+            /*
             dword addr = myCPU.get_mem_modified_addr();
 
             if (myCPU.DISP_MEM <= addr && addr < myCPU.END_MEM) {
@@ -402,6 +414,18 @@ int MainWindow::steprun() {
                         setTableView(ui->main_memTableView, &mainmem_model, myCPU.MAIN_MEM, myCPU.DISP_MEM,
                                      myCPU.getMem(0), addr);
                     }
+            */
+
+            setTableView(ui->main_memTableView, &mainmem_model, myCPU.MAIN_MEM, myCPU.DISP_MEM,
+                         myCPU.getMem(0), myCPU.MAIN_MEM, 1);
+
+            setTableView(ui->static_memTableView, &staticmem_model, myCPU.STATIC_MEM, myCPU.MAIN_MEM,
+                         myCPU.getMem(0), myCPU.STATIC_MEM, 1);
+
+            setTableView(ui->view_memTableView, &viewmem_model, myCPU.DISP_MEM, myCPU.END_MEM,
+                         myCPU.getMem(0), myCPU.DISP_MEM, 1);
+
+            emit modified(getDispContent());
         }
 
         return 0;
@@ -517,8 +541,8 @@ void MainWindow::setTableView(QTableView *tableview, QStandardItemModel **view_m
     *view_model = model;
 
     tableview->setModel(*view_model);
-    tableview->resizeColumnsToContents();
-    tableview->resizeRowsToContents();
+    //tableview->resizeColumnsToContents();
+    //tableview->resizeRowsToContents();
     tableview->horizontalHeader()->setResizeMode(QHeaderView::Fixed);
     tableview->horizontalHeader()->setResizeMode(QHeaderView::Stretch);
 }
