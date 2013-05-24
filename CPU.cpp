@@ -101,7 +101,8 @@ dword CPU::get_mem_modified_addr() {
     return mem_modified_addr;
 }
 
-int CPU::load_static_data(const byte *static_mem, dword size) {
+int CPU::load_static_data(const byte *static_mem, dword size)
+{
     if (size > MAIN_MEM - STATIC_MEM) return 1;
     for (dword i = 0; i < size; i++) {
         Memory[STATIC_MEM + i] = static_mem[i];
@@ -109,285 +110,369 @@ int CPU::load_static_data(const byte *static_mem, dword size) {
     return 0;
 }
 
+int CPU::load_mem_data(const dword *commd_set, dword size, const dword adr_st, const dword adr_ed)
+{
+    if (4*size > adr_ed - adr_st) return 1;
+
+    dword j = 0;
+    for (int i = 0; i < size; i++) {
+        Memory[adr_st + j++] = (byte)((commd_set[i] >> 24) & 0xFF);
+        Memory[adr_st + j++] = (byte)((commd_set[i] >> 16) & 0xFF);
+        Memory[adr_st + j++] = (byte)((commd_set[i] >> 8) & 0xFF);
+        Memory[adr_st + j++] = (byte)(commd_set[i] & 0xFF);
+    }
+
+    /*
+    printf("%08X\n", adr_st);
+    for (int i = 0; i < 4*size; i++)
+    {
+        if (i % 4 == 0)
+            printf("\n");
+        printf("%02X ", Memory[i]);
+    }
+    */
+    return 0;
+}
+
 int CPU::execute_single() {
     int op, rs, rt, rd, dat, udat, adr, shmt, fun;
     unsigned long long t;
-    IR = getIR(PC);
-
-    printf(" %03d: %08X\n", getIC(), IR);
+    bool syscall_flag = false;
+    dword rpc, t_ra;
+    mem_modified_flag = false;
 
     if (PC == endpoint) {
         return 2;
     }
 
-    mem_modified_flag = false;
-    
-    PC += 4;
-    op = (IR >> 26) & 0x3F;
-    rs = (IR >> 21) & 0x1F;
-    rt = (IR >> 16) & 0x1F;
-    rd = (IR >> 11) & 0x1F;
-    shmt = (IR >> 6) & 0x1F;
-    fun = IR & 0x3F;
-    dat = (short)(IR & 0xFFFF);
-    udat = IR & 0xFFFF;
-    adr = (IR & 0x3FFFFFF) << 2;
-    
-    switch (op) {
-        case 0:
-            switch (fun) {
-                case 12:    //syscall
+    rpc = PC + 4;
+    do
+    {
+        IR = getIR(PC);
+        printf(" %08X: %08X\n", getIC(), IR);
 
-                    break;
-
-                case 16:    //mfhi
-                    Reg[rd] = Reg[REG_HI];
-                    break;
-
-                case 18:    //mflo
-                    Reg[rd] = Reg[REG_LO];
-                    break;
-
-                case 24:    //mult
-                    t = (signed)Reg[rs] * (signed)Reg[rt];
-                    Reg[REG_HI] = t >> 32;
-                    Reg[REG_LO] = t & 0xFFFFFFFFFFFFFFFF;
-                    break;
-
-                case 25:    //multu
-                    t = Reg[rs] * Reg[rt];
-                    Reg[REG_HI] = t >> 32;
-                    Reg[REG_LO] = t & 0xFFFFFFFFFFFFFFFF;
-                    break;
-
-                case 26:    //div
-                    Reg[REG_HI] = (signed)Reg[rs] % (signed)Reg[rt];
-                    Reg[REG_LO] = (signed)Reg[rs] / (signed)Reg[rt];
-                    break;
-
-                case 27:    //divu
-                    Reg[REG_HI] = Reg[rs] % Reg[rt];
-                    Reg[REG_LO] = Reg[rs] / Reg[rt];
-                    break;
-
-                case 32:    //add
-                    Reg[rd] = (signed)Reg[rs] + (signed)Reg[rt];
-                    break;
-
-                case 33:    //addu
-                    Reg[rd] = Reg[rs] + Reg[rt];
-                    break;
-
-                case 34:    //sub
-                    Reg[rd] = (signed)Reg[rs] - (signed)Reg[rt];
-                    break;
-
-                case 35:    //subu
-                    Reg[rd] = Reg[rs] - Reg[rt];
-                    break;
-
-                case 36:    //and
-                    Reg[rd] = Reg[rs] & Reg[rt];
-                    break;
-
-                case 37:    //or
-                    Reg[rd] = Reg[rs] | Reg[rt];
-                    break;
-
-                case 38:    //xor
-                    Reg[rd] = Reg[rs] ^ Reg[rt];
-                    break;
-
-                case 39:    //nor
-                    Reg[rd] = ~(Reg[rs] & Reg[rt]);
-                    break;
-
-                case 42:    //slt
-                    Reg[rd] = (signed)Reg[rs] < (signed)Reg[rt] ? 1 : 0;
-                    break;
-
-                case 43:    //sltu
-                    Reg[rd] = Reg[rs] < Reg[rt] ? 1 : 0;
-                    break;
-
-                case 0:    //sll
-                    Reg[rd] = Reg[rt] << shmt;
-                    break;
-
-                case 2:    //srl
-                    Reg[rd] = Reg[rt] >> shmt;
-                    break;
-
-                case 3:    //sra
-                    Reg[rd] = (signed)Reg[rt] >> shmt;
-                    cout << shmt;
-                    break;
-
-                case 4:    //sllv
-                    Reg[rd] = Reg[rt] << Reg[rs];
-                    break;
-
-                case 6:    //srlv
-                    Reg[rd] = Reg[rt] >> Reg[rs];
-                    break;
-
-                case 8:    //jr
-                    PC = Reg[rs];
-                    break;
-            }
-            break;
-
-        case 1:
-            switch (rt) {
-                case 0:     //bltz
-                    if (rs < 0)
-                        PC += (dat << 2);
-                    break;
-
-                case 1:     //bgez
-                    if (rs >= 0)
-                        PC += (dat << 2);
-                    break;
-
-                case 16:    //bltzal
-                    if (rs < 0) {
-                        //Reg[31] = PC + 4; //enable delay slot
-                        Reg[31] = PC; //disable delay slot
-                        PC += (dat << 2);
-                    }
-                    break;
-
-                case 17:    //bgezal
-                    if (rs >= 0) {
-                        //Reg[31] = PC + 4; //enable delay slot
-                        Reg[31] = PC; //disable delay slot
-                        PC += (dat << 2);
-                    }
-                    break;
-            }
-            break;
-
-        case 4:     //beq
-            if (Reg[rs] == Reg[rt])
-                PC += (dat << 2);
-            break;
-
-        case 5:     //bne
-            if (Reg[rs] != Reg[rt])
-                PC += (dat << 2);
-            break;
-
-        case 6:     //blez
-            if (Reg[rs] <= 0)
-                PC += (dat << 2);
-            break;
-
-        case 7:     //bgtz
-            if (Reg[rs] > 0)
-                PC += (dat << 2);
-            break;
-
-        case 8:     //addi
-            Reg[rt] = (signed)Reg[rs] + dat;
-            break;
-
-        case 9:     //addiu
-            Reg[rt] = Reg[rs] + dat;
-            //cout << sizeof(short) << endl << dat << endl;
-            break;
-
-        case 10:     //slti
-            Reg[rt] = (signed)Reg[rs] < dat ? 1 : 0;
-            //cout << sizeof(short) << endl << dat << endl;
-            break;
-            
-        case 11:     //sltiu
-            Reg[rt] = Reg[rs] < (unsigned)dat ? 1 : 0;
-            //cout << sizeof(short) << endl << dat << endl;
-            break;
-            
-        case 12:     //andi
-            Reg[rt] = Reg[rs] & udat;
-            break;
-
-        case 13:     //ori
-            Reg[rt] = Reg[rs] | udat;
-            break;
-
-        case 14:     //xori
-            Reg[rt] = Reg[rs] ^ udat;
-            break;
-
-        case 15:     //lui
-            Reg[rt] = dat << 16;
-            break;
-
-        case 32:    //lb
-            Reg[rt] = (signed)Memory[Reg[rs]+dat+0];
-            break;
-
-        case 33:    //lh
-            Reg[rt] = (signed)(((Memory[Reg[rs]+dat+0]) << 8) |
-                      Memory[Reg[rs]+dat+1]);
-            break;
-
-        case 35:    //lw
-            /*
-            printf("%X %X %X %X\n",
-                   Memory[Reg[rs]+dat+0], Memory[Reg[rs]+dat+1], Memory[Reg[rs]+dat+2], Memory[Reg[rs]+dat+3]);
-            */
-            Reg[rt] = (Memory[Reg[rs]+dat+0] << 24);
-            Reg[rt] |= (Memory[Reg[rs]+dat+1] << 16);
-            Reg[rt] |= (Memory[Reg[rs]+dat+2] << 8);
-            Reg[rt] |= (Memory[Reg[rs]+dat+3]);
-            break;
-
-        case 36:    //lbu
-            Reg[rt] = Memory[Reg[rs]+dat+0];
-            break;
-
-        case 37:    //lhu
-            Reg[rt] = ((Memory[Reg[rs]+dat+0]) << 8) |
-                      Memory[Reg[rs]+dat+1];
-            break;
-
-        case 40:    //sb
-            Memory[Reg[rs]+dat+0] = (byte)(Reg[rt] & 0xFF);
-            mem_modified_flag = true;
-            mem_modified_addr = Reg[rs] + dat;
-            break;
-
-        case 41:    //sh
-            Memory[Reg[rs]+dat+0] = (byte)((Reg[rt] >> 8) & 0xFF);
-            Memory[Reg[rs]+dat+1] = (byte)(Reg[rt] & 0xFF);
-            mem_modified_flag = true;
-            mem_modified_addr = Reg[rs] + dat;
-            break;
-
-        case 43:    //sw
-            Memory[Reg[rs]+dat+0] = (byte)((Reg[rt] >> 24) & 0xFF);
-            Memory[Reg[rs]+dat+1] = (byte)((Reg[rt] >> 16) & 0xFF);
-            Memory[Reg[rs]+dat+2] = (byte)((Reg[rt] >> 8) & 0xFF);
-            Memory[Reg[rs]+dat+3] = (byte)(Reg[rt] & 0xFF);
-            mem_modified_flag = true;
-            mem_modified_addr = Reg[rs] + dat;
-            break;
-
-        case 2:     //j
-            PC = adr;
-            break;
-
-        case 3:     //jal
-            //Reg[31] = PC + 4; //enable delay slot
-            Reg[31] = PC; //disable delay slot
-            PC = adr;
-            break;
+        PC += 4;
+        op = (IR >> 26) & 0x3F;
+        rs = (IR >> 21) & 0x1F;
+        rt = (IR >> 16) & 0x1F;
+        rd = (IR >> 11) & 0x1F;
+        shmt = (IR >> 6) & 0x1F;
+        fun = IR & 0x3F;
+        dat = (short)(IR & 0xFFFF);
+        udat = IR & 0xFFFF;
+        adr = (IR & 0x3FFFFFF) << 2;
         
-        default:
-            printf("Instrution Error!\n");
-            return 1;
-            break;            
+        switch (op) {
+            case 0:
+                switch (fun) {
+                    case 12:    //syscall
+                        syscall_flag = true;
+                        t_ra = Reg[31];
+                        Reg[31] = PC;
+
+                        switch (Reg[2])
+                        {
+                            case 0:
+                                syscall_flag = false;
+                                break;
+                            case 1:
+                                PC = Memory[1];
+                                break;
+                            case 2:
+                                syscall_flag = false;
+                                //PC = Memory[2];
+                                break;
+                            case 3:
+                                syscall_flag = false;
+                                //PC = Memory[3];
+                                break;
+                            case 4:
+                                PC = Memory[16];
+                                break;
+                            case 5:
+                                syscall_flag = false;
+                                //PC = Memory[5];
+                                break;
+                            case 6:
+                                syscall_flag = false;
+                                //PC = Memory[6];
+                                break;
+                            case 7:
+                                syscall_flag = false;
+                                //PC = Memory[7];
+                                break;
+                            case 8:
+                                syscall_flag = false;
+                                //PC = Memory[8];
+                                break;
+                            case 9:
+                                syscall_flag = false;
+                                //PC = Memory[9];
+                                break;
+                            case 10:
+                                syscall_flag = false;
+                                //PC = Memory[10];
+                                break;                            
+                        }
+                        break;
+
+                    case 16:    //mfhi
+                        Reg[rd] = Reg[REG_HI];
+                        break;
+
+                    case 18:    //mflo
+                        Reg[rd] = Reg[REG_LO];
+                        break;
+
+                    case 24:    //mult
+                        t = (signed)Reg[rs] * (signed)Reg[rt];
+                        Reg[REG_HI] = t >> 32;
+                        Reg[REG_LO] = t & 0xFFFFFFFFFFFFFFFF;
+                        break;
+
+                    case 25:    //multu
+                        t = Reg[rs] * Reg[rt];
+                        Reg[REG_HI] = t >> 32;
+                        Reg[REG_LO] = t & 0xFFFFFFFFFFFFFFFF;
+                        break;
+
+                    case 26:    //div
+                        Reg[REG_HI] = (signed)Reg[rs] % (signed)Reg[rt];
+                        Reg[REG_LO] = (signed)Reg[rs] / (signed)Reg[rt];
+                        break;
+
+                    case 27:    //divu
+                        Reg[REG_HI] = Reg[rs] % Reg[rt];
+                        Reg[REG_LO] = Reg[rs] / Reg[rt];
+                        break;
+
+                    case 32:    //add
+                        Reg[rd] = (signed)Reg[rs] + (signed)Reg[rt];
+                        break;
+
+                    case 33:    //addu
+                        Reg[rd] = Reg[rs] + Reg[rt];
+                        break;
+
+                    case 34:    //sub
+                        Reg[rd] = (signed)Reg[rs] - (signed)Reg[rt];
+                        break;
+
+                    case 35:    //subu
+                        Reg[rd] = Reg[rs] - Reg[rt];
+                        break;
+
+                    case 36:    //and
+                        Reg[rd] = Reg[rs] & Reg[rt];
+                        break;
+
+                    case 37:    //or
+                        Reg[rd] = Reg[rs] | Reg[rt];
+                        break;
+
+                    case 38:    //xor
+                        Reg[rd] = Reg[rs] ^ Reg[rt];
+                        break;
+
+                    case 39:    //nor
+                        Reg[rd] = ~(Reg[rs] & Reg[rt]);
+                        break;
+
+                    case 42:    //slt
+                        Reg[rd] = (signed)Reg[rs] < (signed)Reg[rt] ? 1 : 0;
+                        break;
+
+                    case 43:    //sltu
+                        Reg[rd] = Reg[rs] < Reg[rt] ? 1 : 0;
+                        break;
+
+                    case 0:    //sll
+                        Reg[rd] = Reg[rt] << shmt;
+                        break;
+
+                    case 2:    //srl
+                        Reg[rd] = Reg[rt] >> shmt;
+                        break;
+
+                    case 3:    //sra
+                        Reg[rd] = (signed)Reg[rt] >> shmt;
+                        cout << shmt;
+                        break;
+
+                    case 4:    //sllv
+                        Reg[rd] = Reg[rt] << Reg[rs];
+                        break;
+
+                    case 6:    //srlv
+                        Reg[rd] = Reg[rt] >> Reg[rs];
+                        break;
+
+                    case 8:    //jr
+                        PC = Reg[rs];
+
+                        if (rs == 31 && PC == rpc)
+                        {
+                            syscall_flag = false;
+                            Reg[31] = t_ra;
+                        }
+                        break;
+                }
+                break;
+
+            case 1:
+                switch (rt) {
+                    case 0:     //bltz
+                        if (rs < 0)
+                            PC += (dat << 2);
+                        break;
+
+                    case 1:     //bgez
+                        if (rs >= 0)
+                            PC += (dat << 2);
+                        break;
+
+                    case 16:    //bltzal
+                        if (rs < 0) {
+                            //Reg[31] = PC + 4; //enable delay slot
+                            Reg[31] = PC; //disable delay slot
+                            PC += (dat << 2);
+                        }
+                        break;
+
+                    case 17:    //bgezal
+                        if (rs >= 0) {
+                            //Reg[31] = PC + 4; //enable delay slot
+                            Reg[31] = PC; //disable delay slot
+                            PC += (dat << 2);
+                        }
+                        break;
+                }
+                break;
+
+            case 4:     //beq
+                if (Reg[rs] == Reg[rt])
+                    PC += (dat << 2);
+                break;
+
+            case 5:     //bne
+                if (Reg[rs] != Reg[rt])
+                    PC += (dat << 2);
+                break;
+
+            case 6:     //blez
+                if (Reg[rs] <= 0)
+                    PC += (dat << 2);
+                break;
+
+            case 7:     //bgtz
+                if (Reg[rs] > 0)
+                    PC += (dat << 2);
+                break;
+
+            case 8:     //addi
+                Reg[rt] = (signed)Reg[rs] + dat;
+                break;
+
+            case 9:     //addiu
+                Reg[rt] = Reg[rs] + dat;
+                //cout << sizeof(short) << endl << dat << endl;
+                break;
+
+            case 10:     //slti
+                Reg[rt] = (signed)Reg[rs] < dat ? 1 : 0;
+                //cout << sizeof(short) << endl << dat << endl;
+                break;
+                
+            case 11:     //sltiu
+                Reg[rt] = Reg[rs] < (unsigned)dat ? 1 : 0;
+                //cout << sizeof(short) << endl << dat << endl;
+                break;
+                
+            case 12:     //andi
+                Reg[rt] = Reg[rs] & udat;
+                break;
+
+            case 13:     //ori
+                Reg[rt] = Reg[rs] | udat;
+                break;
+
+            case 14:     //xori
+                Reg[rt] = Reg[rs] ^ udat;
+                break;
+
+            case 15:     //lui
+                Reg[rt] = dat << 16;
+                break;
+
+            case 32:    //lb
+                Reg[rt] = (signed)Memory[Reg[rs]+dat+0];
+                break;
+
+            case 33:    //lh
+                Reg[rt] = (signed)(((Memory[Reg[rs]+dat+0]) << 8) |
+                          Memory[Reg[rs]+dat+1]);
+                break;
+
+            case 35:    //lw
+                /*
+                printf("%X %X %X %X\n",
+                       Memory[Reg[rs]+dat+0], Memory[Reg[rs]+dat+1], Memory[Reg[rs]+dat+2], Memory[Reg[rs]+dat+3]);
+                */
+                Reg[rt] = (Memory[Reg[rs]+dat+0] << 24);
+                Reg[rt] |= (Memory[Reg[rs]+dat+1] << 16);
+                Reg[rt] |= (Memory[Reg[rs]+dat+2] << 8);
+                Reg[rt] |= (Memory[Reg[rs]+dat+3]);
+                break;
+
+            case 36:    //lbu
+                Reg[rt] = Memory[Reg[rs]+dat+0];
+                break;
+
+            case 37:    //lhu
+                Reg[rt] = ((Memory[Reg[rs]+dat+0]) << 8) |
+                          Memory[Reg[rs]+dat+1];
+                break;
+
+            case 40:    //sb
+                Memory[Reg[rs]+dat+0] = (byte)(Reg[rt] & 0xFF);
+                mem_modified_flag = true;
+                mem_modified_addr = Reg[rs] + dat;
+                break;
+
+            case 41:    //sh
+                Memory[Reg[rs]+dat+0] = (byte)((Reg[rt] >> 8) & 0xFF);
+                Memory[Reg[rs]+dat+1] = (byte)(Reg[rt] & 0xFF);
+                mem_modified_flag = true;
+                mem_modified_addr = Reg[rs] + dat;
+                break;
+
+            case 43:    //sw
+                Memory[Reg[rs]+dat+0] = (byte)((Reg[rt] >> 24) & 0xFF);
+                Memory[Reg[rs]+dat+1] = (byte)((Reg[rt] >> 16) & 0xFF);
+                Memory[Reg[rs]+dat+2] = (byte)((Reg[rt] >> 8) & 0xFF);
+                Memory[Reg[rs]+dat+3] = (byte)(Reg[rt] & 0xFF);
+                mem_modified_flag = true;
+                mem_modified_addr = Reg[rs] + dat;
+                break;
+
+            case 2:     //j
+                PC = adr;
+                break;
+
+            case 3:     //jal
+                //Reg[31] = PC + 4; //enable delay slot
+                Reg[31] = PC; //disable delay slot
+                PC = adr;
+                break;
+            
+            default:
+                printf("Instrution Error!\n");
+                return 1;
+                break;            
+        }
     }
+    while (syscall_flag);
+
     return 0;
 }
 

@@ -1,5 +1,4 @@
 #include "assembler.h"
-#include "CPU.h"
 
 #include <iostream>
 #include <fstream>
@@ -29,6 +28,18 @@ void assembler::init() {
     list_n = 0;
     static_mem_ptr = 0;
     instru_set.clear();
+    set_CPU_mem();
+}
+
+void assembler::set_CPU_mem(
+    dword _kernel, dword _user, dword _static, dword _main, dword _disp
+)
+{
+    CPU_KERNEL_MEM = _kernel;
+    CPU_USER_MEM = _user;
+    CPU_STATIC_MEM = _static;
+    CPU_MAIN_MEM = _main;
+    CPU_DISP_MEM = _disp;
 }
 
 int assembler::load(std::string filename) {
@@ -113,10 +124,84 @@ int assembler::assemble() {
         i++;
     }
     
-    recheck();
+    recheck(0);
     
     return 0;
 }
+
+
+int assembler::assemble_kernel() {
+    if (instru_set.size() < 1) return 1;
+    
+    int i = 0;
+    int type = 0;
+    bool label_f;
+    std::string label;
+    std::string str;
+    
+    while (i < instru_set.size()) {
+        str = instru_set[i];
+        
+        if (!i) {
+            if (str == ".data")
+                return 1;
+            else if (str == ".text")
+                type = 1;
+            else if (str.find(".globl") == std::string::npos)
+                return 1;
+        }
+        else {
+            if (str == ".data")
+            {
+                return 1;
+            }
+            else if (str == ".text")
+            {
+                type = 1;
+            }
+            else if (str.find(".globl") != std::string::npos)
+            {
+            }
+            else if (str[str.size()-1] == ':')
+            {
+                if (str.size() < 2) return 1;
+                if (type != 1) return 1;
+                
+                label_f = true;
+                label = str;
+                
+                if (i == instru_set.size()-1)
+                    instru_set.push_back("nop");
+            }
+            else if (type == 1) {
+                if (label_f) {
+                    label_f = false;
+                    str = label + str;
+                }
+                
+                if (strcut(str.c_str(), 1) || gen_instru(instru)) {
+                    std::cout << "Error in \"" << str << "\"\n";
+                    return 1;
+                }
+            }
+            else if (type == 0) {
+                if (strcut(str.c_str(), 0) || gen_data(instru)) {
+                    std::cout << "Error in \"" << str << "\"\n";
+                    return 1;
+                }
+            }
+            else
+                return 1;
+        }
+        
+        i++;
+    }
+    
+    recheck(1);
+    
+    return 0;
+}
+
 
 /*
  * save machine code into binary file
@@ -154,7 +239,7 @@ int assembler::save_static_mem(byte *mem) {
  * print assembled machine code
  */
 void assembler::print() {
-    printf("\n------- assembler result -------\n");
+    printf("\n------- assembler result begin -------\n");
     
     
     printf("\ninstrutions:\n");
@@ -180,7 +265,7 @@ void assembler::print() {
         printf("%08X\n", temp);
     }
     
-    printf("\n------- assembler result -------\n");
+    printf("\n------- assembler result end -------\n");
 }
 
 int assembler::get_commd_num() {
@@ -728,7 +813,7 @@ dword assembler::gen_core(char s[][PARA_LEN]) {
         return -1;
 }
 
-void assembler::recheck() {
+void assembler::recheck(int mode) {
     int i, j;
     
     /*
@@ -750,14 +835,22 @@ void assembler::recheck() {
                             (label_in[j].line - label_out[i].line - 1) & 0xFFFF;
                         break;
                     case 'J':
-                        list[label_out[i].line] |=
-                            ((CPU::USER_MEM + (label_in[j].line << 2)) >> 2) & 0x3FFFFFF;
+                        if (mode == 0)
+                            list[label_out[i].line] |=
+                                ((CPU_USER_MEM + (label_in[j].line << 2)) >> 2) & 0x3FFFFFF;
+                        else if (mode == 1)
+                            list[label_out[i].line] |=
+                                ((CPU_KERNEL_MEM + (label_in[j].line << 2)) >> 2) & 0x3FFFFFF;
                         break;
                     case 'P':
                         switch (label_in[j].type) {
                             case 't':
-                                list[label_out[i].line] |=
-                                    ((CPU::USER_MEM + (label_in[j].line << 2)) >> 16) & 0xFFFF;
+                                if (mode == 0)
+                                    list[label_out[i].line] |=
+                                        ((CPU_USER_MEM + (label_in[j].line << 2)) >> 16) & 0xFFFF;
+                                else if (mode == 1)
+                                    list[label_out[i].line] |=
+                                        ((CPU_KERNEL_MEM + (label_in[j].line << 2)) >> 16) & 0xFFFF;
                                 break;
                             case 'd':
                                 list[label_out[i].line] |=
@@ -768,14 +861,21 @@ void assembler::recheck() {
                     case 'p':
                         switch (label_in[j].type) {
                             case 't':
-                                list[label_out[i].line] |= 
-                                    (CPU::USER_MEM + (label_in[j].line << 2)) & 0xFFFF;
+                                if (mode == 0)
+                                    list[label_out[i].line] |= 
+                                        (CPU_USER_MEM + (label_in[j].line << 2)) & 0xFFFF;
+                                else if (mode == 1)
+                                    list[label_out[i].line] |= 
+                                        (CPU_KERNEL_MEM + (label_in[j].line << 2)) & 0xFFFF;
                                 break;
                             case 'd':
                                 list[label_out[i].line] |=
                                     label_in[j].line & 0xFFFF;
                                 break;
                         }
+                        break;
+                    case 'K':
+                        list[label_out[i].line] = label_in[j].line << 2;
                         break;
                 }
                 break;
@@ -854,11 +954,11 @@ dword assembler::string_cpy(byte *dest, const char *src)
 int assembler::gen_data(char s[][PARA_LEN]) {
     char temp[5][PARA_LEN];
     
-    if (static_mem_ptr + CPU::STATIC_MEM >= CPU::MAIN_MEM) return 1;
+    if (static_mem_ptr + CPU_STATIC_MEM >= CPU_MAIN_MEM) return 1;
     
     if (!strcmp(s[1], ".ascii")) {
         strcpy(label_in[li].na, s[0]);
-        label_in[li].line = static_mem_ptr + CPU::STATIC_MEM;
+        label_in[li].line = static_mem_ptr + CPU_STATIC_MEM;
         label_in[li++].type = 'd';
         
         static_mem_ptr += string_cpy(static_mem+static_mem_ptr, s[2]);
@@ -866,7 +966,7 @@ int assembler::gen_data(char s[][PARA_LEN]) {
     
     else if (!strcmp(s[1], ".asciiz")) {
         strcpy(label_in[li].na, s[0]);
-        label_in[li].line = static_mem_ptr + CPU::STATIC_MEM;
+        label_in[li].line = static_mem_ptr + CPU_STATIC_MEM;
         label_in[li++].type = 'd';
         
         static_mem_ptr += string_cpy(static_mem+static_mem_ptr, s[2]);
@@ -875,7 +975,7 @@ int assembler::gen_data(char s[][PARA_LEN]) {
     
     else if (!strcmp(s[1], ".byte")) {
         strcpy(label_in[li].na, s[0]);
-        label_in[li].line = static_mem_ptr + CPU::STATIC_MEM;
+        label_in[li].line = static_mem_ptr + CPU_STATIC_MEM;
         label_in[li++].type = 'd';
         
         strcpy(temp[0], s[2]);
@@ -885,7 +985,7 @@ int assembler::gen_data(char s[][PARA_LEN]) {
     
     else if (!strcmp(s[1], ".halfword")) {
         strcpy(label_in[li].na, s[0]);
-        label_in[li].line = static_mem_ptr + CPU::STATIC_MEM;
+        label_in[li].line = static_mem_ptr + CPU_STATIC_MEM;
         label_in[li++].type = 'd';
         
         strcpy(temp[0], s[2]);
@@ -897,7 +997,7 @@ int assembler::gen_data(char s[][PARA_LEN]) {
     
     else if (!strcmp(s[1], ".word")) {
         strcpy(label_in[li].na, s[0]);
-        label_in[li].line = static_mem_ptr + CPU::STATIC_MEM;
+        label_in[li].line = static_mem_ptr + CPU_STATIC_MEM;
         label_in[li++].type = 'd';
         
         strcpy(temp[0], s[2]);
@@ -911,7 +1011,7 @@ int assembler::gen_data(char s[][PARA_LEN]) {
     
     else if (!strcmp(s[1], ".space")) {
         strcpy(label_in[li].na, s[0]);
-        label_in[li].line = static_mem_ptr + CPU::STATIC_MEM;
+        label_in[li].line = static_mem_ptr + CPU_STATIC_MEM;
         label_in[li++].type = 'd';
         
         strcpy(temp[0], s[2]);
@@ -1146,7 +1246,16 @@ int assembler::gen_instru(char s[][PARA_LEN]) {
         strcpy(temp[3], "4");
         list[list_n++] = gen_core(temp);
     }
-
+    
+    else if (!strcmp(s[0], "label"))
+    {   // for generate kernel
+        strcpy(label_out[lo].na, s[1]);
+        label_out[lo].type = 'K';
+        label_out[lo++].line = list_n;
+        
+        list[list_n++] = 0;
+    }
+    
     else {
         list[list_n++] = gen_core(s);
         if (list[list_n-1] != -1)

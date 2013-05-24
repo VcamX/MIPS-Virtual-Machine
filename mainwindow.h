@@ -36,6 +36,7 @@ private slots:
     void resetAll(int mode = 0);
     int openFile();
     int loadFile(QString fileName);
+    int loadFile_kernel(QString fileName);
     int steprun();
     int run();
     void clickscreen();

@@ -25,6 +25,7 @@ public:
     
     int load(std::string filename);
     int assemble();
+    int assemble_kernel();
     
     int save(dword* commd_set);
     int save(std::string filename);
@@ -37,7 +38,18 @@ public:
 
     void print();
     
+    void set_CPU_mem(
+        dword _kernel = CPU::KERNEL_MEM,
+        dword _user = CPU::USER_MEM,
+        dword _static = CPU::STATIC_MEM,
+        dword _main = CPU::MAIN_MEM,
+        dword _disp = CPU::DISP_MEM
+    );
+    
 private:
+    dword CPU_KERNEL_MEM, CPU_USER_MEM, CPU_STATIC_MEM,
+          CPU_MAIN_MEM, CPU_DISP_MEM;
+    
     typedef struct {
         char na[LABEL_LEN];
         char type;
@@ -57,7 +69,7 @@ private:
     
     int strcut(const char buf[], int mode);
     dword regX(char s[]);
-    void recheck();
+    void recheck(int mode);
     dword immed_addr(char s[]);
     dword gen_core(char s[][PARA_LEN]);
     int gen_instru(char s[][PARA_LEN]);

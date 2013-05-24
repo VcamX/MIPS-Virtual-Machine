@@ -12,6 +12,8 @@ class CPU{
         int boot(std::string filename);
         int boot(const dword *commd_set, int size);
         int load_static_data(const byte *static_mem, dword size);
+        int load_mem_data(const dword *mem, dword size, const dword adr_st, const dword adr_ed);
+
         int execute();
         int execute_single();
         int getCurrSize();

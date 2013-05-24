@@ -180,7 +180,14 @@ int MainWindow::openFile() {
     QString fileName = QFileDialog::getOpenFileName(
                 this, tr("Open MIPS command file"), "*.s",
                 tr("MIPS command file (*.s)"));
-    if (!fileName.isEmpty() && !loadFile(fileName)) {
+
+    QString fileName_kernel = QFileDialog::getOpenFileName(
+                this, tr("Open MIPS kernel file"), "*.s",
+                tr("MIPS command file (*.s)"));
+
+    if (!fileName.isEmpty() && !loadFile(fileName) &&
+        !fileName_kernel.isEmpty() && !loadFile_kernel(fileName_kernel))
+    {
         return 0;
     }
     else {
@@ -190,8 +197,39 @@ int MainWindow::openFile() {
         ui->resetButton->setEnabled(false);
         ui->screenButton->setEnabled(false);
         */
+        QMessageBox::warning(this, tr("Warning"), tr("Loading error!"), QMessageBox::Yes);
         return 1;
     }
+}
+
+int MainWindow::loadFile_kernel(QString fileName)
+{
+    assembler myassembler1;
+    if (myassembler1.load(fileName.toStdString()))
+    {
+        QMessageBox::warning(this, tr("Warning"), tr("Loading Kernel error!"), QMessageBox::Yes);
+        return 1;
+    }
+
+    if (myassembler1.assemble_kernel())
+    {
+        QMessageBox::warning(this, tr("Warning"), tr("Assembling Kernel error!"), QMessageBox::Yes);
+        return 1;
+    }
+    //myassembler1.print();
+
+    dword* mem = new dword[myassembler1.get_commd_num()];
+    myassembler1.save(mem);
+
+    if (myCPU.load_mem_data(mem, myassembler1.get_commd_num(), 0, CPU::USER_MEM))
+    {
+        QMessageBox::warning(this, tr("Warning"), tr("CPU loading Kernel error!"), QMessageBox::Yes);
+        delete [] mem;
+        return 1;
+    }
+
+    delete [] mem;
+    return 0;
 }
 
 int MainWindow::loadFile(QString fileName) {
@@ -205,16 +243,27 @@ int MainWindow::loadFile(QString fileName) {
     // assemble
     assembler myassembler;
     if (myassembler.load(fileName.toStdString()))
+    {
+        QMessageBox::warning(this, tr("Warning"), tr("Loading MIPS Command error!"), QMessageBox::Yes);
         return 1;
+    }
 
-    myassembler.assemble();
+    if (myassembler.assemble())
+    {
+        QMessageBox::warning(this, tr("Warning"), tr("Assembling MIPS Command error!"), QMessageBox::Yes);
+        return 1;
+    }
     dword* mem = new dword[myassembler.get_commd_num()];
     myassembler.save(mem);
-    myassembler.print();
+    //myassembler.print();
 
 
     // CPU load commd
-    myCPU.boot(mem, myassembler.get_commd_num());
+    if (myCPU.boot(mem, myassembler.get_commd_num()))
+    {
+        QMessageBox::warning(this, tr("Warning"), tr("CPU loading MIPS Command error!"), QMessageBox::Yes);
+        return 1;
+    }
 
     // CPU load static memory
     byte *static_mem = new byte[myassembler.get_static_mem_size()];
@@ -229,8 +278,8 @@ int MainWindow::loadFile(QString fileName) {
 
     // deassemble
     deassembler mydeassembler;
-    mydeassembler.load(mem, (dword)myassembler.get_commd_num());
-    mydeassembler.print();
+    mydeassembler.load(mem, myassembler.get_commd_num());
+    //mydeassembler.print();
     //std::cout << "assembler: " << myassembler.get_commd_num() << std::endl;
     //std::cout << "deassembler: " << mydeassembler.get_instru_num() << std::endl;
 
@@ -243,7 +292,9 @@ int MainWindow::loadFile(QString fileName) {
 
     int i;
     QString temp;
+    printf("%d\n", mydeassembler.get_instru_num());
     for (i = 0; i < mydeassembler.get_instru_num(); i++) {
+
         model->setItem(i, 0, new QStandardItem(dword2QString(myCPU.USER_MEM+i*4)));
         model->item(i, 0)->setTextAlignment(Qt::AlignCenter);
 
