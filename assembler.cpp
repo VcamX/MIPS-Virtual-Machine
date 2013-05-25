@@ -303,6 +303,21 @@ int assembler::strcut(const char buf[], int mode) {
             }
             if (buf[i] == '\0') return 1;
         }
+        else if (buf[i] == '\'')
+        {   //for static data
+            i++;
+            instru[m][j++] = '\'';
+            while (buf[i] != '\'' && buf[i] != '\0'){
+                instru[m][j++] = buf[i++];
+                /*
+                instru[m][j++] = (buf[i] >= 'A') && (buf[i] <= 'Z') ?
+                                 buf[i++] + 32:
+                                 buf[i++];
+                */
+            }
+            if (buf[i] == '\0') return 1;
+            instru[m][j++] = '\'';
+        }
         else
         {   //for normal statement
             while (buf[i] != ' ' && buf[i] != ',' &&
@@ -385,6 +400,7 @@ dword assembler::regX(char s[])
 int assembler::is_num(const char *s) {
     int len = strlen(s);
     int idx = s[0] == '-' || s[0] == '+';
+    
     if  (len == 3 && s[0] == '\'' && s[2] == '\'')
         return -1;
     if (len > 2 && s[idx] == '0' && (s[idx+1] == 'X' || s[idx+1] == 'x'))
