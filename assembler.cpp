@@ -427,11 +427,11 @@ dword assembler::immed(char s[], dword mask, int div) {
     dword r = 0;
     char ch = 0;
     char *s1 = NULL;
-
+    
     /* char-type immediate */
     if  (strlen(s) == 3 && s[0] == '\'' && s[2] == '\'')
         return (dword)s[1];
-
+    
     /* split */
     while (s[p]) {
         if ((s[p] == '+' && p) ||

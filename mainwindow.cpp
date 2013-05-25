@@ -335,6 +335,7 @@ int MainWindow::loadFile(QString fileName) {
     commd_model = model;
     ui->codeTableView->setModel(commd_model);
     //ui->codeTableView->resizeColumnsToContents();
+    //ui->codeTableView->resizeColumnToContents(0);
     //ui->codeTableView->resizeRowsToContents();
     ui->codeTableView->horizontalHeader()->setResizeMode(QHeaderView::Fixed);
     ui->codeTableView->horizontalHeader()->setResizeMode(1, QHeaderView::Stretch);
@@ -542,6 +543,7 @@ void MainWindow::setTableView(QTableView *tableview, QStandardItemModel **view_m
 
     tableview->setModel(*view_model);
     //tableview->resizeColumnsToContents();
+    //tableview->resizeColumnToContents(0);
     //tableview->resizeRowsToContents();
     tableview->horizontalHeader()->setResizeMode(QHeaderView::Fixed);
     tableview->horizontalHeader()->setResizeMode(QHeaderView::Stretch);
