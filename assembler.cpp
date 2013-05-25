@@ -346,7 +346,7 @@ dword assembler::regX(char s[])
             reg = s[2] - '0' + 2;
             break;
         case 'k':
-            reg = s[2] - '0' + 62;
+            reg = s[2] - '0' + 26;
             break;
         case 'a':
             if (s[2] == 't')
