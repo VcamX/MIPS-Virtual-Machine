@@ -170,6 +170,9 @@ int CPU::execute_single() {
                         t_ra = Reg[31];
                         Reg[31] = PC;
 
+                        PC = KERNEL_MEM;
+
+                        /*
                         switch (Reg[2])
                         {
                             case 0:
@@ -220,6 +223,7 @@ int CPU::execute_single() {
                                 //PC = Memory[10];
                                 break;                            
                         }
+                        */
                         break;
 
                     case 16:    //mfhi
