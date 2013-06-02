@@ -35,11 +35,14 @@ class CPU{
         void setEP(dword endp);
         dword getEP();
 
-        enum { REGNUM = 34, REG_HI = 32, REG_LO = 33,
-               WIDTH = 80, HEIGHT = 25,
-               END_MEM = 0x10000, // 64Kb
-               KERNEL_MEM = 0, USER_MEM = 0x2000, STATIC_MEM = 0x5000,
-               MAIN_MEM = 0x7000, DISP_MEM = END_MEM - WIDTH*HEIGHT };
+        enum
+        {
+            REGNUM = 34, REG_HI = 32, REG_LO = 33,
+            WIDTH = 80, HEIGHT = 25,
+            END_MEM = 0x10000, // 64Kb
+            KERNEL_MEM = 0, USER_MEM = 0x2000, STATIC_MEM = 0x5000,
+            MAIN_MEM = 0x7000, DISP_MEM = END_MEM - WIDTH*HEIGHT
+        };
         
     private:
         dword PC, IR, MDR, endpoint;
