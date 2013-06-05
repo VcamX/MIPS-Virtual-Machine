@@ -118,6 +118,7 @@ int deassembler::regName(char s[], dword r) {
         case 31: strcpy(s, "$ra"); break;
         case 32: strcpy(s, "$HI"); break;
         case 33: strcpy(s, "$LO"); break;
+        case 34: strcpy(s, "PC"); break;
     }
     return 1;
 }

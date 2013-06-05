@@ -4,19 +4,19 @@ HEADERS += \
     screendialog.h \
     mainwindow.h \
     data_type.h \
-    CPU.h \
     loadingdialog.h \
     assembler.h \
-    deassembler.h
+    deassembler.h \
+    qtcpu.h
 
 SOURCES += \
     screendialog.cpp \
     mainwindow.cpp \
     main.cpp \
-    CPU.cpp \
     loadingdialog.cpp \
     deassembler.cpp \
-    assembler.cpp
+    assembler.cpp \
+    qtcpu.cpp
 
 FORMS += \
     screendialog.ui \

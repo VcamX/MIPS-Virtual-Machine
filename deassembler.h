@@ -18,7 +18,7 @@ public:
     int get_instru_num();
     
     void print();
-    int regName(char s[], dword r);
+    static int regName(char s[], dword r);
     
 private:
     int trans(char s[], dword ir, dword pc);

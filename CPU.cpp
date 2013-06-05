@@ -11,7 +11,7 @@ using namespace std;
 //MIPSCPU::MIPSCPU() :REGNUM(32), MAXMEM(100000) {
 CPU::CPU() {
     rst();
-    memset(Memory, 0, sizeof(Memory));
+    std::memset(Memory, 0, sizeof(Memory));
 }
 
 CPU::~CPU() {
@@ -115,7 +115,7 @@ int CPU::load_mem_data(const dword *commd_set, dword size, const dword adr_st, c
     if (4*size > adr_ed - adr_st) return 1;
 
     dword j = 0;
-    for (int i = 0; i < size; i++) {
+    for (dword i = 0; i < size; i++) {
         Memory[adr_st + j++] = (byte)((commd_set[i] >> 24) & 0xFF);
         Memory[adr_st + j++] = (byte)((commd_set[i] >> 16) & 0xFF);
         Memory[adr_st + j++] = (byte)((commd_set[i] >> 8) & 0xFF);
@@ -501,7 +501,7 @@ int CPU::execute() {
 }
 
 void CPU::rst(int mode) {
-    memset(Reg, 0, sizeof(Reg));
+    std::memset(Reg, 0, sizeof(Reg));
     Reg[29] = DISP_MEM;
     Reg[30] = Reg[29];
     Reg[28] = STATIC_MEM;

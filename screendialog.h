@@ -1,8 +1,9 @@
 #ifndef SCREENDIALOG_H
 #define SCREENDIALOG_H
 
+#include "qtCPU.h"
 #include <QDialog>
-#include "CPU.h"
+#include <QKeyEvent>
 
 namespace Ui {
 class screendialog;
@@ -18,8 +19,11 @@ public:
 
     int width, height;
 
+protected:
+    void keyPressEvent(QKeyEvent* ev);
+
 public slots:
-    void fresh(const QString &content);
+    void fresh(const QString s);
     
 private:
     Ui::screendialog *ui;

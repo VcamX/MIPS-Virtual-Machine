@@ -2,7 +2,7 @@
 #define ASSEMBLER_H
 
 #include "data_type.h"
-#include "CPU.h"
+#include "qtcpu.h"
 
 #include <string>
 #include <vector>
@@ -39,11 +39,11 @@ public:
     void print();
     
     void set_CPU_mem(
-        dword _kernel = CPU::KERNEL_MEM,
-        dword _user = CPU::USER_MEM,
-        dword _static = CPU::STATIC_MEM,
-        dword _main = CPU::MAIN_MEM,
-        dword _disp = CPU::DISP_MEM
+        dword _kernel = qtCPU::KERNEL_MEM,
+        dword _user = qtCPU::USER_MEM,
+        dword _static = qtCPU::STATIC_MEM,
+        dword _main = qtCPU::MAIN_MEM,
+        dword _disp = qtCPU::DISP_MEM
     );
     
 private:
@@ -64,7 +64,7 @@ private:
     dword list[COMMD_NUM];
     int list_n;
     
-    byte static_mem[CPU::MAIN_MEM - CPU::STATIC_MEM];
+    byte static_mem[qtCPU::MAIN_MEM - qtCPU::STATIC_MEM];
     dword static_mem_ptr;
     
     int strcut(const char buf[], int mode);

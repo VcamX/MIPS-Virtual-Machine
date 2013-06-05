@@ -13,287 +13,103 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    //ui->regGroupBox->hide();
-    //ui->infoGroupBox->hide();
-    ui->memoryTabWidget->hide();
-    //this->setFixedHeight(this->height());
-    //this->setFixedSize(this->width(), this->height());
-    this->layout()->setSizeConstraint(QLayout::SetDefaultConstraint);
-
+    /*
+     * connect buttons' singals
+     */
     connect(ui->aboutAction, SIGNAL(triggered()), this, SLOT(about()));
-    connect(ui->resetButton, SIGNAL(clicked()), this, SLOT(resetAll()));
-    connect(ui->openAction, SIGNAL(triggered()), this, SLOT(openFile()));
-    connect(ui->steprunButton, SIGNAL(clicked()), this, SLOT(steprun()));
-    connect(ui->runButton, SIGNAL(clicked()), this, SLOT(run()));
+    connect(ui->openAction, SIGNAL(triggered()), this, SLOT(about_to_open_file()));
+
+    connect(ui->timer_runButton, SIGNAL(clicked()), this, SLOT(timer_run_restart()));
+    connect(ui->timer_stopButton, SIGNAL(clicked()), this, SLOT(timer_run_stop()));
+
+    connect(ui->step_runButton, SIGNAL(clicked()), this, SLOT(timer_run_once()));
+    connect(ui->resetButton, SIGNAL(clicked()), this, SLOT(gui_reset()));
+
     connect(ui->screenButton, SIGNAL(clicked()), this, SLOT(clickscreen()));
 
-    screen = new screendialog(this);
+
+    /*
+     * connect clock's signals and slots
+     */
+    connect(ui->clockHorizontalSlider, SIGNAL(valueChanged(int)),
+            this, SLOT(gui_clk_update(int)));
+    connect(ui->clockHorizontalSlider, SIGNAL(valueChanged(int)),
+            this, SLOT(clock_update(int)));
+    connect(&clock, SIGNAL(timeout()), this, SLOT(timer_run_once()));
+
+
+    /*
+     * other initialization
+     */
+    screen = new screendialog();
     connect(this, SIGNAL(modified(const QString &)), screen, SLOT(fresh(const QString &)));
 
     commd_model = NULL;
-    Reg_model = NULL;
-    mainmem_model = NULL;
-    staticmem_model = NULL;
-    viewmem_model = NULL;
+    reg_model = NULL;
+    main_mem_model = NULL;
+    static_mem_model = NULL;
+    disp_mem_model = NULL;
 
-    resetAll(1);
+    my_cpu = NULL;
+    my_cpu_thread = NULL;
+
+    codeview_current_row = 0;
+    my_cpu_current_pc = 0;
+    is_stopped = false;
+    exec_result = false;
 }
 
 MainWindow::~MainWindow()
 {
+    delete_all();
     delete ui;
 }
 
-void MainWindow::resetAll(int mode) {
-    if (ui->codeTableView->model()) {
-        paintRow(commd_model, myCPU.getIC(), QBrush(QColor(255, 255, 255)));
-        ui->addressLabel->setText("Program counter: 00000000");
-    }
-    else {
-        ui->addressLabel->setText("Program counter: ");
-    }
-
-    myCPU.rst(mode);
-
-    setReg(myCPU.getReg(), myCPU.REGNUM, 1);
-
-    /*
-    if (mode) {
-        setTableView(ui->main_memTableView, &mainmem_model, myCPU.MAIN_MEM, myCPU.DISP_MEM,
-                     myCPU.getMem(0), myCPU.MAIN_MEM, 1);
-
-        setTableView(ui->static_memTableView, &staticmem_model, myCPU.STATIC_MEM, myCPU.MAIN_MEM,
-                     myCPU.getMem(0), myCPU.STATIC_MEM, 1);
-    }
-    setTableView(ui->view_memTableView, &viewmem_model, myCPU.DISP_MEM, myCPU.END_MEM,
-                 myCPU.getMem(0), myCPU.DISP_MEM, 1);
-    */
-
-    setTableView(ui->main_memTableView, &mainmem_model, myCPU.MAIN_MEM, myCPU.DISP_MEM,
-                 myCPU.getMem(0), myCPU.MAIN_MEM, 1);
-
-    setTableView(ui->static_memTableView, &staticmem_model, myCPU.STATIC_MEM, myCPU.MAIN_MEM,
-                 myCPU.getMem(0), myCPU.STATIC_MEM, 1);
-
-    setTableView(ui->view_memTableView, &viewmem_model, myCPU.DISP_MEM, myCPU.END_MEM,
-                 myCPU.getMem(0), myCPU.DISP_MEM, 1);
-
-    paintRow(commd_model, myCPU.getIC(), QBrush(QColor(255, 0, 0, 127)));
-    emit modified(getDispContent());
-
-    if (!mode) {
-        ui->breakpointLineEdit->setEnabled(true);
-        ui->endpointLineEdit->setEnabled(true);
-        //ui->codeTableView->selectRow(0);
-    }
-}
-
-int MainWindow::paintRow(QStandardItemModel *model, int row, const QBrush &brush) {
-    if (!model) return 1;
-    for (int i = 0; model->item(row, i); i++)
-        model->item(row, i)->setBackground(brush);
-    return 0;
-}
-
-void MainWindow::setReg(const dword Reg[], int size, int mode) {
-    if (mode == 0) {
-        int i;
-        for (i = 0; i < (size-2)/2; i++) {
-            if (Reg_model->item(i, 1)->text() != dword2QString(Reg[i])) {
-                Reg_model->item(i, 1)->setText(dword2QString(Reg[i]));
-                Reg_model->item(i, 1)->setBackground(QBrush(QColor(0, 0, 255, 127)));
-            }
-            else
-                Reg_model->item(i, 1)->setBackground(QBrush(QColor(255, 255, 255)));
-
-            if (Reg_model->item(i, 3)->text() != dword2QString(Reg[i+(size-2)/2])) {
-                Reg_model->item(i, 3)->setText(dword2QString(Reg[i+(size-2)/2]));
-                Reg_model->item(i, 3)->setBackground(QBrush(QColor(0, 0, 255, 127)));
-            }
-            else
-                Reg_model->item(i, 3)->setBackground(QBrush(QColor(255, 255, 255)));
-        }
-
-        if (Reg_model->item(i, 1)->text() != dword2QString(Reg[size-2])) {
-            Reg_model->item(i, 1)->setText(dword2QString(Reg[size-2]));
-            Reg_model->item(i, 1)->setBackground(QBrush(QColor(0, 0, 255, 127)));
-        }
-        else
-            Reg_model->item(i, 1)->setBackground(QBrush(QColor(255, 255, 255)));
-
-        if (Reg_model->item(i, 3)->text() != dword2QString(Reg[size-1])) {
-            Reg_model->item(i, 3)->setText(dword2QString(Reg[size-1]));
-            Reg_model->item(i, 3)->setBackground(QBrush(QColor(0, 0, 255, 127)));
-        }
-        else
-            Reg_model->item(i, 3)->setBackground(QBrush(QColor(255, 255, 255)));
-
-        return;
-    }
-
-
-    QStandardItemModel* model = new QStandardItemModel;
-    model->setColumnCount(4);
-    model->setHeaderData(0, Qt::Horizontal, tr("Reg"));
-    model->setHeaderData(1, Qt::Horizontal, tr("Content"));
-    model->setHeaderData(2, Qt::Horizontal, tr("Reg"));
-    model->setHeaderData(3 ,Qt::Horizontal, tr("Content"));
-
-    QString temp;
-    deassembler t;
-    char s[5];
-    for (int i = 0; i < (size-2)/2; i++) {
-        t.regName(s, (dword)i);
-        temp.sprintf("%s (%d)", s, i);
-        model->setItem(i, 0, new QStandardItem(temp));
-        model->item(i, 0)->setTextAlignment(Qt::AlignCenter);
-
-        model->setItem(i, 1, new QStandardItem(dword2QString(Reg[i])));
-        model->item(i, 1)->setTextAlignment(Qt::AlignCenter);
-
-        int j = i + (size-2)/2;
-        t.regName(s, (dword)j);
-        temp.sprintf("%s (%d)", s, j);
-        model->setItem(i, 2, new QStandardItem(temp));
-        model->item(i, 2)->setTextAlignment(Qt::AlignCenter);
-
-        model->setItem(i, 3, new QStandardItem(dword2QString(Reg[j])));
-        model->item(i, 3)->setTextAlignment(Qt::AlignCenter);
-    }
-    int i = size/2 - 1;
-    t.regName(s, (dword)32);
-    model->setItem(i, 0, new QStandardItem(QString(s)));
-    model->item(i, 0)->setTextAlignment(Qt::AlignCenter);
-
-    model->setItem(i, 1, new QStandardItem(dword2QString(Reg[size-2])));
-    model->item(i, 1)->setTextAlignment(Qt::AlignCenter);
-
-    t.regName(s, (dword)33);
-    model->setItem(i, 2, new QStandardItem(QString(s)));
-    model->item(i, 2)->setTextAlignment(Qt::AlignCenter);
-
-    model->setItem(i, 3, new QStandardItem(dword2QString(Reg[size-1])));
-    model->item(i, 3)->setTextAlignment(Qt::AlignCenter);
-
-
-    if (ui->regTableView->model())
-        delete ui->regTableView->model();
-
-    Reg_model = model;
-    ui->regTableView->setModel(Reg_model);
-    ui->regTableView->resizeColumnToContents(0);
-    ui->regTableView->resizeRowsToContents();
-    ui->regTableView->horizontalHeader()->setResizeMode(QHeaderView::Fixed);
-    ui->regTableView->horizontalHeader()->setResizeMode(QHeaderView::Stretch);
-}
-
-int MainWindow::openFile() {
-    QString fileName = QFileDialog::getOpenFileName(
-                this, tr("Open MIPS command file"), "*.s",
-                tr("MIPS command file (*.s)"));
-
-    QString fileName_kernel = QFileDialog::getOpenFileName(
-                this, tr("Open MIPS kernel file"), "*.s",
-                tr("MIPS command file (*.s)"));
-
-    if (!fileName.isEmpty() && !loadFile(fileName) &&
-        !fileName_kernel.isEmpty() && !loadFile_kernel(fileName_kernel))
-    {
-        return 0;
-    }
-    else {
-        /*
-        ui->runButton->setEnabled(false);
-        ui->steprunButton->setEnabled(false);
-        ui->resetButton->setEnabled(false);
-        ui->screenButton->setEnabled(false);
-        */
-        QMessageBox::warning(this, tr("Warning"), tr("Loading error!"), QMessageBox::Yes);
-        return 1;
-    }
-}
-
-int MainWindow::loadFile_kernel(QString fileName)
+void MainWindow::reset_all()
 {
-    assembler myassembler1;
-    if (myassembler1.load(fileName.toStdString()))
+    if (clock.isActive())
+        clock.stop();
+
+    if (my_cpu)
     {
-        QMessageBox::warning(this, tr("Warning"), tr("Loading Kernel error!"), QMessageBox::Yes);
-        return 1;
+        if (my_cpu_thread && my_cpu_thread->isRunning())
+            emit cpu_rst();
+        else
+        {
+            my_cpu->rst();
+        }
     }
-
-    if (myassembler1.assemble_kernel())
-    {
-        QMessageBox::warning(this, tr("Warning"), tr("Assembling Kernel error!"), QMessageBox::Yes);
-        return 1;
-    }
-    //myassembler1.print();
-
-    dword* mem = new dword[myassembler1.get_commd_num()];
-    myassembler1.save(mem);
-
-    if (myCPU.load_mem_data(mem, myassembler1.get_commd_num(), 0, CPU::USER_MEM))
-    {
-        QMessageBox::warning(this, tr("Warning"), tr("CPU loading Kernel error!"), QMessageBox::Yes);
-        delete [] mem;
-        return 1;
-    }
-
-    delete [] mem;
-    return 0;
 }
 
-int MainWindow::loadFile(QString fileName) {
-    loadingdialog *loading = new loadingdialog(this);
-    connect(this, SIGNAL(loadingdone()), loading, SLOT(close()));
-    loading->show();
+void MainWindow::delete_all()
+{
+    reset_all();
 
-
-    resetAll(1);
-
-    // assemble
-    assembler myassembler;
-    if (myassembler.load(fileName.toStdString()))
+    if (my_cpu_thread)
     {
-        QMessageBox::warning(this, tr("Warning"), tr("Loading MIPS Command error!"), QMessageBox::Yes);
-        return 1;
+        if (my_cpu_thread->isRunning())
+            my_cpu_thread->terminate();
+        if (my_cpu)
+            delete my_cpu;
+        delete my_cpu_thread;
     }
+}
 
-    if (myassembler.assemble())
-    {
-        QMessageBox::warning(this, tr("Warning"), tr("Assembling MIPS Command error!"), QMessageBox::Yes);
-        return 1;
-    }
-    dword* mem = new dword[myassembler.get_commd_num()];
-    myassembler.save(mem);
-    //myassembler.print();
+void MainWindow::gui_reset()
+{
+    timer_run_init();
+    reset_all();
+    other_setting_init();
+}
 
-
-    // CPU load commd
-    if (myCPU.boot(mem, myassembler.get_commd_num()))
-    {
-        QMessageBox::warning(this, tr("Warning"), tr("CPU loading MIPS Command error!"), QMessageBox::Yes);
-        return 1;
-    }
-
-    // CPU load static memory
-    byte *static_mem = new byte[myassembler.get_static_mem_size()];
-    myassembler.save_static_mem(static_mem);
-    myCPU.load_static_data(static_mem, myassembler.get_static_mem_size());
-
-    delete [] static_mem;
-
-    setTableView(ui->static_memTableView, &staticmem_model, myCPU.STATIC_MEM, myCPU.MAIN_MEM,
-                 myCPU.getMem(0), myCPU.STATIC_MEM, 1);
-
-
+void MainWindow::gui_ins_init(const dword* mem, const dword size)
+{
     // deassemble
-    deassembler mydeassembler;
-    mydeassembler.load(mem, myassembler.get_commd_num(), CPU::USER_MEM);
+    deassembler my_deassembler;
+    my_deassembler.load(mem, size, qtCPU::USER_MEM);
     //mydeassembler.print();
     //std::cout << "assembler: " << myassembler.get_commd_num() << std::endl;
     //std::cout << "deassembler: " << mydeassembler.get_instru_num() << std::endl;
-
 
     QStandardItemModel* model = new QStandardItemModel;
     model->setColumnCount(3);
@@ -303,17 +119,17 @@ int MainWindow::loadFile(QString fileName) {
 
     int i;
     QString temp;
-    printf("%d\n", mydeassembler.get_instru_num());
-    for (i = 0; i < mydeassembler.get_instru_num(); i++) {
+    //printf("%d\n", mydeassembler.get_instru_num());
+    for (i = 0; i < my_deassembler.get_instru_num(); i++) {
 
-        model->setItem(i, 0, new QStandardItem(dword2QString(myCPU.USER_MEM+i*4)));
+        model->setItem(i, 0, new QStandardItem( dword2QString( qtCPU::USER_MEM+i*4 ) ));
         model->item(i, 0)->setTextAlignment(Qt::AlignCenter);
 
-        temp.sprintf("%s", mydeassembler.get_instru(i).c_str());
+        temp.sprintf("%s", my_deassembler.get_instru(i).c_str());
         model->setItem(i, 1, new QStandardItem(temp));
         model->item(i, 1)->setTextAlignment(Qt::AlignCenter);
 
-        model->setItem(i, 2, new QStandardItem(dword2QString(mem[i])));
+        model->setItem(i, 2, new QStandardItem( dword2QString( mem[i] ) ));
         model->item(i, 2)->setTextAlignment(Qt::AlignCenter);
     }
     model->setItem(i, 0, new QStandardItem("End"));
@@ -325,214 +141,140 @@ int MainWindow::loadFile(QString fileName) {
     model->setItem(i, 2, new QStandardItem("End"));
     model->item(i, 2)->setTextAlignment(Qt::AlignCenter);
 
-    paintRow(model, 0, QBrush(QColor(255, 0, 0, 127)));
-
-    delete [] mem;
-
-    if (ui->codeTableView->model())
-        delete ui->codeTableView->model();
+    if (ui->commdTableView->model())
+        delete ui->commdTableView->model();
 
     commd_model = model;
-    ui->codeTableView->setModel(commd_model);
-    //ui->codeTableView->resizeColumnsToContents();
-    //ui->codeTableView->resizeColumnToContents(0);
-    //ui->codeTableView->resizeRowsToContents();
-    ui->codeTableView->horizontalHeader()->setResizeMode(QHeaderView::Fixed);
-    ui->codeTableView->horizontalHeader()->setResizeMode(1, QHeaderView::Stretch);
-    //ui->codeTableView->selectRow(0);
+    ui->commdTableView->setModel(commd_model);
+    ui->commdTableView->resizeColumnToContents(0);
+    ui->commdTableView->resizeColumnToContents(2);
+    //ui->commdTableView->horizontalHeader()->setResizeMode(QHeaderView::Fixed);
+    ui->commdTableView->horizontalHeader()->setResizeMode(1, QHeaderView::Stretch);
+}
 
-    temp.sprintf("Program counter: %08X", myCPU.getPC());
-    ui->addressLabel->setText(temp);
+void MainWindow::gui_ins_counter_update(int ins_counter)
+{
+    if (ins_counter >= commd_model->rowCount()) return;
 
-    // enable buttons
-    ui->runButton->setEnabled(true);
-    ui->steprunButton->setEnabled(true);
-    ui->resetButton->setEnabled(true);
-    ui->screenButton->setEnabled(true);
+    gui_ins_paint_row(commd_model, codeview_current_row, QBrush(QColor(255, 255, 255)));
+    codeview_current_row = (dword)ins_counter;
+    gui_ins_paint_row(commd_model, codeview_current_row, QBrush(QColor(255, 0, 0, 127)));
+}
 
-    // disable widgets
-    //ui->breakpointLineEdit->setEnabled(false);
-    //ui->endpointLineEdit->setEnabled(false);
-
-    ui->breakpointLineEdit->setText(dword2QString(myCPU.getEP()));
-    ui->endpointLineEdit->setText(dword2QString(myCPU.getEP()));
-
-
-    emit loadingdone();
-    delete loading;
-
+int MainWindow::gui_ins_paint_row(QStandardItemModel *model, int row, const QBrush &brush) {
+    if (!model) return 1;
+    for (int i = 0; model->item(row, i); i++)
+        model->item(row, i)->setBackground(brush);
     return 0;
 }
 
-void MainWindow::setPoint() {
-    if (ui->breakpointLineEdit->isEnabled()) {
-        ui->breakpointLineEdit->setEnabled(false);
-        ui->endpointLineEdit->setEnabled(false);
+void MainWindow::gui_reg_init(const dword reg[])
+{
+    QStandardItemModel* model = new QStandardItemModel;
+    model->setColumnCount(2);
+    model->setHeaderData(0, Qt::Horizontal, tr("Reg"));
+    model->setHeaderData(1, Qt::Horizontal, tr("Content"));
 
-        breakpoint = ui->breakpointLineEdit->text().toInt(0, 16);
-        breakpoint = (breakpoint - myCPU.USER_MEM) / 4 * 4 + myCPU.USER_MEM;
-        myCPU.setEP(ui->endpointLineEdit->text().toInt(0, 16));
+    QString temp;
+    char s[5];
+    dword i;
+    for (int j = 0; j < qtCPU::REGNUM; j++)
+    {
+        i = (j+1) % qtCPU::REGNUM;
 
-        ui->breakpointLineEdit->setText(dword2QString(breakpoint));
-        ui->endpointLineEdit->setText(dword2QString(myCPU.getEP()));
+        deassembler::regName(s, j);
+        temp.sprintf("%s (%d)", s, j);
+        model->setItem(i, 0, new QStandardItem(temp));
+        model->item(i, 0)->setTextAlignment(Qt::AlignCenter);
+
+        model->setItem(i, 1, new QStandardItem(dword2QString( reg[j] )));
+        model->item(i, 1)->setTextAlignment(Qt::AlignCenter);
     }
+
+    if (ui->regTableView->model())
+        delete ui->regTableView->model();
+
+    reg_model = model;
+    ui->regTableView->setModel(reg_model);
+
+    ui->regTableView->resizeColumnsToContents();
+    //ui->regTableView->horizontalHeader()->setResizeMode(QHeaderView::Fixed);
+    ui->regTableView->horizontalHeader()->setResizeMode(QHeaderView::Stretch);
+
 }
 
-int MainWindow::steprun() {
-    setPoint();
-
-    paintRow(commd_model, myCPU.getIC(), QBrush(QColor(255, 255, 255)));
-
-    int flag = myCPU.execute_single();
-
-    paintRow(commd_model, myCPU.getIC(), QBrush(QColor(255, 0, 0, 127)));
-    //ui->codeTableView->selectRow((int)CPU.getIC());
-
-    if (!flag) {
-        QString temp;
-        temp.sprintf("Program counter: %08X", myCPU.getPC());
-        ui->addressLabel->setText(temp);
-
-        setReg(myCPU.getReg(), myCPU.REGNUM);
-
-        if (myCPU.is_mem_modified()) {
-            /*
-            dword addr = myCPU.get_mem_modified_addr();
-
-            if (myCPU.DISP_MEM <= addr && addr < myCPU.END_MEM) {
-                setTableView(ui->view_memTableView, &viewmem_model,
-                             myCPU.DISP_MEM, myCPU.END_MEM,
-                             myCPU.getMem(0), addr);
-                emit modified(getDispContent());
-            }
-            else
-                if (myCPU.STATIC_MEM <= addr && addr < myCPU.MAIN_MEM) {
-                    setTableView(ui->static_memTableView, &staticmem_model, myCPU.STATIC_MEM, myCPU.MAIN_MEM,
-                                 myCPU.getMem(0), addr);
-                }
-                else
-                    if (myCPU.MAIN_MEM <= addr && addr < myCPU.DISP_MEM) {
-                        setTableView(ui->main_memTableView, &mainmem_model, myCPU.MAIN_MEM, myCPU.DISP_MEM,
-                                     myCPU.getMem(0), addr);
-                    }
-            */
-
-            setTableView(ui->main_memTableView, &mainmem_model, myCPU.MAIN_MEM, myCPU.DISP_MEM,
-                         myCPU.getMem(0), myCPU.MAIN_MEM, 1);
-
-            setTableView(ui->static_memTableView, &staticmem_model, myCPU.STATIC_MEM, myCPU.MAIN_MEM,
-                         myCPU.getMem(0), myCPU.STATIC_MEM, 1);
-
-            setTableView(ui->view_memTableView, &viewmem_model, myCPU.DISP_MEM, myCPU.END_MEM,
-                         myCPU.getMem(0), myCPU.DISP_MEM, 1);
-
-            emit modified(getDispContent());
-        }
-
-        return 0;
+void MainWindow::gui_reg_update(const dword reg, const dword val)
+{
+    if (reg > qtCPU::REGNUM)
+    {
+        for (int i = 0; i < qtCPU::REGNUM; i++)
+            reg_model->item(i, 1)->setBackground(QBrush(QColor(255, 255, 255)));
     }
-    else {
-        //paintRow(commd_model, CPU.getIC(), QBrush(QColor(255, 0, 0, 127)));
-        QMessageBox::warning(this, tr("Warning"), tr("End point!\nExecution is stopped!"), QMessageBox::Yes);
-        return 1;
-    }
-}
-
-int MainWindow::run() {
-    setPoint();
-
-    for (;;) {
-        if (myCPU.getPC() == breakpoint) {
-            QMessageBox::warning(this, tr("Warning"), tr("Break point!\nExecution is stopped!"),
-                                 QMessageBox::Yes);
-            break;
-        }
-        if (steprun())
-            return 0;
-    }
-    return 1;
-}
-
-void MainWindow::clickscreen() {
-    if (screen->isHidden())
-        screen->show();
     else
-        screen->hide();
-}
-
-QString MainWindow::getDispContent() {
-    QString content;
-    const byte *memory = myCPU.getDispMem();
-    for (int i = 0; i < myCPU.WIDTH*myCPU.HEIGHT; i++) {
-        if (i && i % myCPU.WIDTH == 0)
-            content += QChar('\n');
-        if (memory[i])
-            content += QChar(memory[i]);
-        else
-            content += QChar(' ');
-    }
-    return content;
-}
-
-QString MainWindow::dword2QString(const dword &data) {
-    QString str;
-    str.sprintf("%08X", data);
-    return str;
-}
-
-void MainWindow::setTableView(QTableView *tableview, QStandardItemModel **view_model,
-                              dword addr_st, dword addr_ed, const byte *mem_ptr,
-                              dword addr, int mode) {
-    if (mode == 0) {
-        for (dword i = addr; i < addr+4; i++) {
-            QStringList t;
-            QString str;
-            dword row = (i - addr_st) / 4, col = i % 4;
-
-            str = QString((*view_model)->item(row, 1)->text());
-            t = QString((*view_model)->item(row, 1)->text()).split(" ");
-            QString temp;
-            temp.sprintf("%02X", mem_ptr[i]);
-            t[col] = temp;
-            (*view_model)->setItem(row, 1, new QStandardItem( t.join(" ") ));
-            (*view_model)->item(row, 1)->setTextAlignment(Qt::AlignCenter);
-
-            str = QString((*view_model)->item(row, 2)->text());
-            str[col*2] = (mem_ptr[i] > 31 && mem_ptr[i] < 127) ? QChar(mem_ptr[i]) : QChar('.');
-            (*view_model)->setItem(row, 2, new QStandardItem( str ));
-            (*view_model)->item(row, 2)->setTextAlignment(Qt::AlignCenter);
+    {
+        for (dword j = 0; j < qtCPU::REGNUM; j++)
+        {
+            if (j == reg)
+            {
+                dword i = (j+1) % qtCPU::REGNUM;
+                reg_model->item(i, 1)->setText( dword2QString( val ) );
+                reg_model->item(i, 1)->setBackground(QBrush(QColor(0, 0, 255, 127)));
+            }
         }
-        return;
-    }
 
-    QStandardItemModel *model = new QStandardItemModel;
+        /*
+        * update if it's PC
+        */
+        if (reg == qtCPU::REG_PC)
+        {
+            my_cpu_current_pc = val;
+            gui_ins_counter_update( (int)(val - qtCPU::USER_MEM) / 4 );
+        }
+    }
+}
+
+void MainWindow::gui_mem_init_view(
+        QTableView* tableview, QStandardItemModel** view_model,
+        dword addr_st, dword addr_ed, const byte* mem_ptr
+        )
+{
+    QStandardItemModel* model = new QStandardItemModel;
     model->setColumnCount(3);
     model->setHeaderData(0, Qt::Horizontal, tr("Address"));
     model->setHeaderData(1, Qt::Horizontal, tr("Content"));
     model->setHeaderData(2, Qt::Horizontal, tr("Ascii"));
 
-    for (int i = 0; addr_st+i < addr_ed; i+=4) {
-        QStringList t;
-        int row = i/4;
+    for (int offset = 0; addr_st+offset < addr_ed; offset+=4) {
+        QStringList str_list;
+        int row = offset/4;
 
-        model->setItem(row, 0, new QStandardItem(dword2QString(addr_st+i)));
+        /*
+         * address
+         */
+        model->setItem(row, 0, new QStandardItem(dword2QString(addr_st+offset)));
         model->item(row, 0)->setTextAlignment(Qt::AlignCenter);
 
-        t.clear();
+        /*
+         * content
+         */
+        str_list.clear();
         for (int j = 0; j < 4; j++) {
             QString str;
-            str.sprintf("%02X", mem_ptr[addr_st+i+j]);
-            t << str;
+            str.sprintf("%02X", mem_ptr[addr_st+offset+j]);
+            str_list << str;
         }
-        model->setItem(row, 1, new QStandardItem( t.join(" ") ));
+        model->setItem(row, 1, new QStandardItem( str_list.join(" ") ));
         model->item(row, 1)->setTextAlignment(Qt::AlignCenter);
 
-        t.clear();
+        /*
+         * ascii
+         */
+        str_list.clear();
         for (int j = 0; j < 4; j++) {
-            t << ( (mem_ptr[addr_st+i+j] > 31 && mem_ptr[addr_st+i+j] < 127) ?
-                        QChar(mem_ptr[addr_st+i+j]) : QChar('.') );
+            str_list << QString( (mem_ptr[addr_st+offset+j] > 31 && mem_ptr[addr_st+offset+j] < 127) ?
+                           QChar(mem_ptr[addr_st+offset+j]) : QChar('.') );
         }
-        model->setItem(row, 2, new QStandardItem( t.join(" ") ));
+        model->setItem(row, 2, new QStandardItem( str_list.join(" ") ));
         model->item(row, 2)->setTextAlignment(Qt::AlignCenter);
     }
 
@@ -540,13 +282,441 @@ void MainWindow::setTableView(QTableView *tableview, QStandardItemModel **view_m
         delete tableview->model();
 
     *view_model = model;
-
     tableview->setModel(*view_model);
-    //tableview->resizeColumnsToContents();
-    //tableview->resizeColumnToContents(0);
-    //tableview->resizeRowsToContents();
-    tableview->horizontalHeader()->setResizeMode(QHeaderView::Fixed);
-    tableview->horizontalHeader()->setResizeMode(QHeaderView::Stretch);
+    tableview->setColumnWidth(0, 70);
+    tableview->setColumnWidth(1, 85);
+    tableview->setColumnWidth(2, 85);
+    //tableview->horizontalHeader()->setResizeMode(QHeaderView::Fixed);
+    //tableview->horizontalHeader()->setResizeMode(QHeaderView::Stretch);
+}
+
+void MainWindow::gui_mem_init(const byte* mem_ptr)
+{
+    gui_mem_init_view(
+                ui->static_memTableView, &static_mem_model,
+                qtCPU::STATIC_MEM, qtCPU::MAIN_MEM, mem_ptr
+                );
+
+    gui_mem_init_view(
+                ui->main_memTableView, &main_mem_model,
+                qtCPU::MAIN_MEM, qtCPU::DISP_MEM, mem_ptr
+                );
+
+    gui_mem_init_view(
+                ui->disp_memTableView, &disp_mem_model,
+                qtCPU::DISP_MEM, qtCPU::END_MEM, mem_ptr
+                );
+}
+
+void MainWindow::gui_mem_update_view(
+        QStandardItemModel **view_model, const dword addr_st, const dword addr, const dword val
+        )
+{
+    QStringList str_list;
+    QString str;
+    dword row, col;
+    byte value;
+    QString temp;
+
+    for (dword i = 0; i < 4; i++)
+    {
+        row = (addr+i - addr_st) / 4, col = (addr+i) % 4;
+        if (row >= (*view_model)->rowCount()) break;
+        value = (val >> (8*(3-i))) & 0xFF;
+
+
+        str = QString((*view_model)->item(row, 1)->text());
+        str_list = QString((*view_model)->item(row, 1)->text()).split(" ");
+
+        temp.sprintf("%02X", value);
+        str_list[col] = temp;
+
+        (*view_model)->setItem(row, 1, new QStandardItem( str_list.join(" ") ));
+        (*view_model)->item(row, 1)->setTextAlignment(Qt::AlignCenter);
+
+
+        str = QString((*view_model)->item(row, 2)->text());
+        str[col*2] = (value > 31 && value < 127) ? QChar(value) : QChar('.');
+
+        (*view_model)->setItem(row, 2, new QStandardItem( str ));
+        (*view_model)->item(row, 2)->setTextAlignment(Qt::AlignCenter);
+    }
+}
+
+void MainWindow::gui_mem_update(const dword mem_addr, const dword val)
+{
+    if (qtCPU::USER_MEM <= mem_addr && mem_addr < qtCPU::STATIC_MEM)
+    {
+
+    }
+    else if (qtCPU::STATIC_MEM <= mem_addr && mem_addr < qtCPU::MAIN_MEM)
+    {
+        gui_mem_update_view(&static_mem_model, qtCPU::STATIC_MEM, mem_addr, val);
+    }
+    else if (qtCPU::MAIN_MEM <= mem_addr && mem_addr < qtCPU::DISP_MEM)
+    {
+        gui_mem_update_view(&main_mem_model, qtCPU::MAIN_MEM, mem_addr, val);
+    }
+    else if (qtCPU::DISP_MEM <= mem_addr && mem_addr < qtCPU::END_MEM)
+    {
+        gui_mem_update_view(&disp_mem_model, qtCPU::DISP_MEM, mem_addr, val);
+    }
+}
+
+void MainWindow::gui_clk_update(int val)
+{
+    int speed = calc_clock_cycle(val);
+    QString str;
+    str.sprintf("%s%d%s", "Speed: ", speed, " Hz");
+    ui->clockLabel->setText( str );
+}
+
+int MainWindow::calc_clock_cycle(int val)
+{
+    if (val <= 20)
+        return val;
+    else
+        return 20+(val-20)*12;
+}
+
+void MainWindow::gui_button_init()
+{
+    ui->step_runButton->setEnabled(true);
+    ui->timer_runButton->setEnabled(true);
+    ui->timer_stopButton->setEnabled(false);
+    ui->resetButton->setEnabled(true);
+    ui->screenButton->setEnabled(true);
+
+    ui->clockHorizontalSlider->setEnabled(true);
+    ui->clockLabel->setEnabled(true);
+
+    ui->breakpointLineEdit->setEnabled(true);
+}
+
+
+void MainWindow::gui_button_timer_start()
+{
+    ui->step_runButton->setEnabled(false);
+    ui->timer_runButton->setEnabled(false);
+    ui->timer_stopButton->setEnabled(true);
+    ui->resetButton->setEnabled(false);
+    ui->screenButton->setEnabled(true);
+
+    ui->clockHorizontalSlider->setEnabled(true);
+    ui->clockLabel->setEnabled(true);
+
+    ui->breakpointLineEdit->setEnabled(false);
+}
+
+void MainWindow::connect_init()
+{
+    /*
+     * connect cpu's signals and slots
+     */
+    connect(this, SIGNAL(cpu_rst()),
+            my_cpu, SLOT(rst()), Qt::QueuedConnection);
+
+    connect(this, SIGNAL(cpu_run_once(int)),
+            my_cpu, SLOT(pc_increment(int)), Qt::QueuedConnection);
+
+    connect(my_cpu, SIGNAL(reg_update(dword,dword)),
+            this, SLOT(gui_reg_update(dword,dword)), Qt::QueuedConnection);
+
+    connect(my_cpu, SIGNAL(mem_update(dword,dword)),
+            this, SLOT(gui_mem_update(dword,dword)), Qt::QueuedConnection);
+
+    connect(my_cpu, SIGNAL(exec_result_send(bool)),
+            this, SLOT(exec_result_receive(bool)), Qt::QueuedConnection);
+}
+
+void MainWindow::other_setting_init()
+{
+    gui_ins_counter_update(0);
+    my_cpu_current_pc = qtCPU::USER_MEM;
+    exec_result = true;
+}
+
+void MainWindow::about_to_open_file()
+{
+    qtCPU* temp_cpu = new qtCPU;
+
+    int failed = open_file(temp_cpu);
+
+    if (!failed)
+    {
+        delete_all();
+
+        my_cpu = temp_cpu;
+        timer_run_init();
+
+        connect_init();
+        other_setting_init();
+
+        /*
+         * move cpu to second thread
+         */
+        my_cpu_thread = new QThread(this);
+        my_cpu->moveToThread(my_cpu_thread);
+        my_cpu_thread->start();
+
+        gui_button_init();
+
+        //QMessageBox::warning(this, tr("Congratulations!"), tr("Loading successfully!"), QMessageBox::Yes);
+    }
+    else
+        delete temp_cpu;
+}
+
+int MainWindow::open_file(qtCPU* temp_cpu) {
+    /*
+     * load user's file
+     */
+    QString user_file =
+            QFileDialog::getOpenFileName(
+                this, tr("Open MIPS command file"), "*.s",
+                tr("MIPS command file (*.s)")
+                );
+
+    if (user_file.isEmpty())
+    {
+        //QMessageBox::warning(this, tr("Warning"), tr("Command file doesn't exsist!"), QMessageBox::Yes);
+        return 1;
+    }
+
+    if (load_user(user_file, temp_cpu))
+    {
+        return 1;
+    }
+
+
+    /*
+     * load kernel
+     */
+    QString kernel_file =
+            QFileDialog::getOpenFileName(
+                this, tr("Open MIPS kernel file"), "*.s",
+                tr("MIPS command file (*.s)")
+                );
+
+    if (kernel_file.isEmpty())
+    {
+        //QMessageBox::warning(this, tr("Warning"), tr("Kernel file doesn't exsist!"), QMessageBox::Yes);
+        return 1;
+    }
+
+    if (load_kernel(kernel_file, temp_cpu))
+    {
+        return 1;
+    }
+
+    return 0;
+}
+
+int MainWindow::load_kernel(QString fileName, qtCPU* my_cpu)
+{
+    assembler my_assembler;
+    if (my_assembler.load(fileName.toStdString()))
+    {
+        QMessageBox::warning(
+                    this, tr("Warning"),
+                    tr("Assembler loaded kernel unsuccessfully!"), QMessageBox::Yes
+                    );
+        return 1;
+    }
+
+    if (my_assembler.assemble_kernel())
+    {
+        QMessageBox::warning(
+                    this, tr("Warning"), tr("Assemble kernel unsuccessfully!"), QMessageBox::Yes
+                    );
+        return 1;
+    }
+    //myassembler1.print();
+
+    dword* mem = new dword[my_assembler.get_commd_num()];
+    my_assembler.save(mem);
+
+    int failed =
+            my_cpu->load_mem_commd_data(mem, my_assembler.get_commd_num(), qtCPU::KERNEL_MEM, qtCPU::USER_MEM);
+    delete [] mem;
+    if (failed)
+    {
+        QMessageBox::warning(this, tr("Warning"), tr("Memory is too small, cant'load MIPS Command error!"), QMessageBox::Yes);
+        return 1;
+    }
+    else
+        return 0;
+}
+
+int MainWindow::load_user(QString fileName, qtCPU* my_cpu)
+{
+    int failed = 0;
+
+    /*
+     * assemble
+     */
+    assembler my_assembler;
+
+    failed = my_assembler.load(fileName.toStdString());
+    if (failed)
+    {
+        QMessageBox::warning(
+                    this, tr("Warning"),
+                    tr("Assembler loaded MIPS command unsuccessfully!"), QMessageBox::Yes
+                    );
+        return 1;
+    }
+
+    failed = my_assembler.assemble();
+    if (failed)
+    {
+        QMessageBox::warning(
+                    this, tr("Warning"),
+                    tr("Assemble MIPS command unsuccessfully!"), QMessageBox::Yes
+                    );
+        return 1;
+    }
+
+    dword* mem = new dword[my_assembler.get_commd_num()];
+    failed = my_assembler.save(mem);
+    if (failed)
+    {
+        return 1;
+    }
+
+    /*
+     * CPU load commd
+     */
+    failed =
+            my_cpu->load_mem_commd_data(mem, my_assembler.get_commd_num(), qtCPU::USER_MEM, qtCPU::STATIC_MEM);
+    if (failed)
+    {
+        QMessageBox::warning(this, tr("Warning"), tr("Memory is too small, cant'load MIPS Command error!"), QMessageBox::Yes);
+        return 1;
+    }
+
+    /*
+     * CPU load static data
+     */
+    byte* static_mem = new byte[my_assembler.get_static_mem_size()];
+    my_assembler.save_static_mem(static_mem);
+    failed = my_cpu->load_static_data(static_mem, my_assembler.get_static_mem_size());
+    delete [] static_mem;
+    if (failed)
+    {
+        QMessageBox::warning(
+                    this, tr("Warning"),
+                    tr("CPU loaded MIPS command unsuccessfully!"), QMessageBox::Yes
+                    );
+        return 1;
+    }
+
+    /*
+     * memory GUI init
+     */
+    gui_mem_init(my_cpu->get_mem_ptr());
+
+    /*
+     * command GUI init
+     */
+    gui_ins_init(mem, my_assembler.get_commd_num());
+    delete mem;
+
+    /*
+     * reg GUI init
+     */
+    gui_reg_init(my_cpu->get_reg_ptr());
+
+    /*
+     * break point init
+     */
+    ui->breakpointLineEdit->setText( dword2QString( qtCPU::USER_MEM + 4*my_assembler.get_commd_num() ) );
+
+    return 0;
+}
+
+void MainWindow::exec_result_receive(bool flag)
+{
+    //exec_result_mutex.lock();
+    exec_result = flag;
+    //reg_update_flag = 0;
+    //exec_result_mutex.lock();
+}
+
+dword MainWindow::get_break_point()
+{
+    return ui->breakpointLineEdit->text().toInt(0, 16);
+}
+
+void MainWindow::clock_update(int val)
+{
+    int speed = calc_clock_cycle(val);
+    clock.setInterval( 1000/speed );
+}
+
+void MainWindow::timer_run_init()
+{
+    gui_clk_update( ui->clockHorizontalSlider->value() );
+    clock_update( ui->clockHorizontalSlider->value() );
+    clock.stop();
+    is_stopped = false;
+}
+
+void MainWindow::timer_run_restart()
+{
+    clock.start();
+
+    gui_button_timer_start();
+}
+
+void MainWindow::timer_run_stop()
+{
+    clock.stop();
+
+    gui_button_init();
+}
+
+void MainWindow::timer_run_once()
+{
+    //exec_result_mutex.lock();
+
+    if (!is_stopped && get_break_point() == my_cpu_current_pc)
+    {
+        is_stopped = true;
+        timer_run_stop();
+    }
+    else if (exec_result)
+    {
+        is_stopped = false;
+        //exec_result = false;
+        gui_reg_update(qtCPU::REGNUM+1, 0);
+
+        emit cpu_run_once(0);
+    }
+    else
+    {
+        QMessageBox::warning(
+                    this, tr("Warning"),
+                    tr("CPU can't continue working!"), QMessageBox::Yes
+                    );
+        timer_run_stop();
+    }
+
+    //exec_result_mutex.unlock();
+}
+
+void MainWindow::clickscreen()
+{
+    if (screen->isHidden())
+        screen->show();
+    else
+        screen->hide();
+}
+
+QString MainWindow::dword2QString(const dword &data) {
+    QString str;
+    str.sprintf("%08X", data);
+    return str;
 }
 
 void MainWindow::about() {

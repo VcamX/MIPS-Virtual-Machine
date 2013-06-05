@@ -8,8 +8,12 @@
 #include <QMessageBox>
 #include <QTableView>
 #include <QStandardItemModel>
+#include <QThread>
+#include <QMutex>
+#include <QTimer>
+#include <QMetaType>
 
-#include "CPU.h"
+#include "qtcpu.h"
 #include "assembler.h"
 #include "deassembler.h"
 #include "screendialog.h"
@@ -31,35 +35,77 @@ public:
 signals:
     void modified(const QString &);
     void loadingdone();
+
+    void cpu_run_once(int action);
+    void cpu_rst();
+
+public slots:
+    void gui_ins_counter_update(const int ins_counter);
+    void gui_reg_update(const dword reg, const dword val);
+    void gui_mem_update(const dword mem_addr, const dword val);
     
 private slots:
-    void resetAll(int mode = 0);
-    int openFile();
-    int loadFile(QString fileName);
-    int loadFile_kernel(QString fileName);
-    int steprun();
-    int run();
+    void reset_all();
+    void delete_all();
+
+    void connect_init();
+    void other_setting_init();
+
+    void gui_reset();
+
+    void gui_ins_init(const dword* mem, const dword size);
+    int gui_ins_paint_row(QStandardItemModel *model, int row, const QBrush &brush);
+
+    void gui_reg_init(const dword reg[]);
+
+    void gui_mem_init_view(QTableView *tableview, QStandardItemModel **view_model,
+                           dword addr_st, dword addr_ed, const byte *mem_ptr);
+    void gui_mem_init(const byte* mem_ptr);
+    void gui_mem_update_view(QStandardItemModel **view_model,
+                             const dword addr_st, const dword addr, const dword val);
+
+    void gui_button_init();
+    void gui_button_timer_start();
+
+    int calc_clock_cycle(int val);
+    void gui_clk_update(int val);
+
+    dword get_break_point();
+
+    void about_to_open_file();
+    int open_file(qtCPU *temp_cpu);
+    int load_user(QString fileName, qtCPU *my_cpu);
+    int load_kernel(QString fileName, qtCPU *my_cpu);
+
+    void clock_update(int val);
+
+    void timer_run_init();
+    void timer_run_once();
+    void timer_run_stop();
+    void timer_run_restart();
+
+    void exec_result_receive(bool flag);
+
     void clickscreen();
     void about();
 
 private:
     Ui::MainWindow *ui;
-    void setReg(const dword Reg[], int size, int mode = 0);
-    QString getDispContent();
-    int paintRow(QStandardItemModel *model, int row, const QBrush &brush);
-    void setPoint();
-    void setTableView(QTableView *tableview, QStandardItemModel **view_model,
-                      dword addr_st, dword addr_ed, const byte *mem_ptr,
-                      dword addr, int mode = 0);
+
+    screendialog* screen;
+
+    QStandardItemModel *reg_model, *commd_model, *main_mem_model, *static_mem_model, *disp_mem_model;
+
+    QTimer clock;
+    qtCPU* my_cpu;
+    QThread* my_cpu_thread;
+
+    dword codeview_current_row, my_cpu_current_pc;
+    bool is_stopped; // for break point
+    bool exec_result; // record whether cpu is kept running
 
     // tools for convinient
     inline QString dword2QString(const dword &data);
-
-    CPU myCPU;
-    screendialog *screen;
-
-    QStandardItemModel *Reg_model, *commd_model, *viewmem_model, *staticmem_model, *mainmem_model;
-    dword breakpoint;
 };
 
 #endif // MAINWINDOW_H

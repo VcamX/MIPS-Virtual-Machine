@@ -5,6 +5,10 @@
 
 int main(int argc, char *argv[])
 {
+    qRegisterMetaType<byte>("byte");
+    qRegisterMetaType<word>("word");
+    qRegisterMetaType<dword>("dword");
+
     QApplication a(argc, argv);
 
     QSplashScreen *splash = new QSplashScreen;
