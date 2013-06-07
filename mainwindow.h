@@ -16,7 +16,7 @@
 #include "qtcpu.h"
 #include "assembler.h"
 #include "deassembler.h"
-#include "screendialog.h"
+#include "keyboardtextedit.h"
 
 namespace Ui {
 class MainWindow;
@@ -86,13 +86,14 @@ private slots:
 
     void exec_result_receive(bool flag);
 
-    void clickscreen();
+    void disp_screen();
     void about();
 
 private:
     Ui::MainWindow *ui;
 
-    screendialog* screen;
+    QDialog *screen;
+    keyboardTextEdit *keyboard_screen;
 
     QStandardItemModel *reg_model, *commd_model, *main_mem_model, *static_mem_model, *disp_mem_model;
 

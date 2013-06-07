@@ -7,7 +7,8 @@ HEADERS += \
     loadingdialog.h \
     assembler.h \
     deassembler.h \
-    qtcpu.h
+    qtcpu.h \
+    keyboardtextedit.h
 
 SOURCES += \
     screendialog.cpp \
@@ -16,7 +17,8 @@ SOURCES += \
     loadingdialog.cpp \
     deassembler.cpp \
     assembler.cpp \
-    qtcpu.cpp
+    qtcpu.cpp \
+    keyboardtextedit.cpp
 
 FORMS += \
     screendialog.ui \

@@ -1,11 +1,9 @@
-#include <QTableView>
-
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include "screendialog.h"
-#include "loadingdialog.h"
+#include <QTableView>
+#include <QDebug>
 
-#include <iostream>
+//#include <iostream>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -25,7 +23,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->step_runButton, SIGNAL(clicked()), this, SLOT(timer_run_once()));
     connect(ui->resetButton, SIGNAL(clicked()), this, SLOT(gui_reset()));
 
-    connect(ui->screenButton, SIGNAL(clicked()), this, SLOT(clickscreen()));
+    connect(ui->screenButton, SIGNAL(clicked()), this, SLOT(disp_screen()));
 
 
     /*
@@ -41,8 +39,12 @@ MainWindow::MainWindow(QWidget *parent) :
     /*
      * other initialization
      */
-    screen = new screendialog();
-    connect(this, SIGNAL(modified(const QString &)), screen, SLOT(fresh(const QString &)));
+    screen = new QDialog(this);
+    keyboard_screen = new keyboardTextEdit(screen);
+
+    screen->resize(keyboard_screen->width(), keyboard_screen->height());
+    screen->setWindowTitle(QString("Screen"));
+
 
     commd_model = NULL;
     reg_model = NULL;
@@ -62,6 +64,7 @@ MainWindow::MainWindow(QWidget *parent) :
 MainWindow::~MainWindow()
 {
     delete_all();
+    delete screen;
     delete ui;
 }
 
@@ -705,7 +708,7 @@ void MainWindow::timer_run_once()
     //exec_result_mutex.unlock();
 }
 
-void MainWindow::clickscreen()
+void MainWindow::disp_screen()
 {
     if (screen->isHidden())
         screen->show();
