@@ -14,6 +14,7 @@
 #include <QMetaType>
 
 #include "qtcpu.h"
+#include "qtcpu_thread.h"
 #include "assembler.h"
 #include "deassembler.h"
 #include "keyboardtextedit.h"
@@ -39,7 +40,7 @@ signals:
     void cpu_run_once(int action);
     void cpu_rst();
 
-    void disp_fresh(const dword addr, const dword val);
+    //void disp_fresh(const dword addr, const dword val);
 
 public slots:
     void gui_ins_counter_update(const int ins_counter);
@@ -50,7 +51,9 @@ private slots:
     void reset_all();
     void delete_all();
 
-    void connect_init();
+    void debug_connect_init();
+    void debug_disconnect_init();
+    void normal_connect_init();
     void other_setting_init();
 
     void gui_reset();
@@ -66,8 +69,10 @@ private slots:
     void gui_mem_update_view(QStandardItemModel **view_model,
                              const dword addr_st, const dword addr, const dword val);
 
-    void gui_button_init();
+    void gui_button_debug_init();
     void gui_button_timer_start();
+    void gui_button_normal_init();
+    void gui_button_normal_start();
 
     int calc_clock_cycle(int val);
     void gui_clk_update(int val);
@@ -76,6 +81,9 @@ private slots:
 
     void about_to_open_file();
     int open_file(qtCPU *temp_cpu);
+    void debug_about_to_open_file(qtCPU* new_cpu);
+    void normal_about_to_open_file(qtCPU* new_cpu);
+
     int load_user(QString fileName, qtCPU *my_cpu);
     int load_kernel(QString fileName, qtCPU *my_cpu);
 
@@ -88,7 +96,9 @@ private slots:
 
     void exec_result_receive(bool flag);
 
+    void screen_init();
     void disp_screen();
+
     void about();
 
 private:
@@ -102,6 +112,7 @@ private:
     QTimer clock;
     qtCPU* my_cpu;
     QThread* my_cpu_thread;
+    qtCPU_thread t_cpu_thread;
 
     int ins_counter;
 

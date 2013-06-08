@@ -54,7 +54,7 @@ int assembler::load(std::string filename) {
 int assembler::assemble() {
     if (instru_set.size() < 1) return 1;
     
-    int i = 0;
+    dword i = 0;
     int type = 0;
     bool label_f;
     std::string label;
@@ -127,7 +127,7 @@ int assembler::assemble() {
 int assembler::assemble_kernel() {
     if (instru_set.size() < 1) return 1;
     
-    int i = 0;
+    dword i = 0;
     int type = 0;
     bool label_f;
     std::string label;
@@ -203,7 +203,7 @@ int assembler::assemble_kernel() {
 int assembler::save(std::string filename) {
     FILE* f;
     f = fopen(filename.c_str(), "wb");
-    for (int i = 0; i < list_n; i++) {
+    for (dword i = 0; i < list_n; i++) {
         dword t = ((list[i] >> 0) & 0xFF) << 24 |
                   ((list[i] >> 8) & 0xFF) << 16 |
                   ((list[i] >> 16) & 0xFF) << 8 |
@@ -218,7 +218,7 @@ int assembler::save(std::string filename) {
  * save machine code into memory
  */
 int assembler::save(dword* commd_set) {
-    for (int i = 0; i < list_n; i++)
+    for (dword i = 0; i < list_n; i++)
         commd_set[i] = list[i];
     return 0;
 }
@@ -237,7 +237,7 @@ void assembler::print() {
     
     
     printf("\ninstrutions:\n");
-    for (int i = 0; i < instru_set.size(); i++) {
+    for (dword i = 0; i < instru_set.size(); i++) {
         std::cout << instru_set[i] << std::endl;
     }
         
@@ -1296,7 +1296,7 @@ int assembler::gen_instru(char s[][PARA_LEN]) {
     
     else {
         list[list_n++] = gen_core(s);
-        if (list[list_n-1] != -1)
+        if (list[list_n-1] != 0xFFFFFFFF)
             return 0;
         else
             return 1;

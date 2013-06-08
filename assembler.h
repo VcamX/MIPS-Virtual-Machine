@@ -62,7 +62,7 @@ private:
     TABLE label_out[LABEL_NUM], label_in[LABEL_NUM];
     int lo, li;
     dword list[COMMD_NUM];
-    int list_n;
+    dword list_n;
     
     byte static_mem[qtCPU::MAIN_MEM - qtCPU::STATIC_MEM];
     dword static_mem_ptr;

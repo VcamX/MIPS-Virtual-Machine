@@ -85,7 +85,7 @@ int deassembler::get_instru_num() {
 void deassembler::print() {
     printf("\n------- deassembler result -------\n");
     
-    for (int i = 0; i < instru_set.size(); i++) {
+    for (dword i = 0; i < instru_set.size(); i++) {
         std::cout << instru_set[i] << std::endl;
     }
     
@@ -117,6 +117,7 @@ int deassembler::regName(char s[], dword r) {
         case 31: strcpy(s, "$ra"); break;
         case 32: strcpy(s, "$HI"); break;
         case 33: strcpy(s, "$LO"); break;
+        case 34: strcpy(s, "$PC"); break;
     }
     return 1;
 }

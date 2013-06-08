@@ -17,37 +17,10 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->aboutAction, SIGNAL(triggered()), this, SLOT(about()));
     connect(ui->openAction, SIGNAL(triggered()), this, SLOT(about_to_open_file()));
 
-    connect(ui->timer_runButton, SIGNAL(clicked()), this, SLOT(timer_run_restart()));
-    connect(ui->timer_stopButton, SIGNAL(clicked()), this, SLOT(timer_run_stop()));
-
-    connect(ui->step_runButton, SIGNAL(clicked()), this, SLOT(timer_run_once()));
-    connect(ui->resetButton, SIGNAL(clicked()), this, SLOT(gui_reset()));
-
     connect(ui->screenButton, SIGNAL(clicked()), this, SLOT(disp_screen()));
 
-
-    /*
-     * connect clock's signals and slots
-     */
-    connect(ui->clockHorizontalSlider, SIGNAL(valueChanged(int)),
-            this, SLOT(gui_clk_update(int)));
-    connect(ui->clockHorizontalSlider, SIGNAL(valueChanged(int)),
-            this, SLOT(clock_update(int)));
-    connect(&clock, SIGNAL(timeout()), this, SLOT(timer_run_once()));
-
-
-    /*
-     * other initialization
-     */
-    screen = new QDialog(this);
-    keyboard_screen = new keyboardTextEdit(screen);
-
-    screen->resize(keyboard_screen->width(), keyboard_screen->height());
-    screen->setMinimumSize(keyboard_screen->width(), keyboard_screen->height());
-    screen->setMaximumSize(keyboard_screen->width(), keyboard_screen->height());
-
-    screen->setWindowTitle(QString("Screen"));
-
+    screen = NULL;
+    keyboard_screen = NULL;
 
     commd_model = NULL;
     reg_model = NULL;
@@ -67,7 +40,6 @@ MainWindow::MainWindow(QWidget *parent) :
 MainWindow::~MainWindow()
 {
     delete_all();
-    delete screen;
     delete ui;
 }
 
@@ -90,11 +62,15 @@ void MainWindow::reset_all()
 void MainWindow::delete_all()
 {
     reset_all();
+    debug_disconnect_init();
 
     if (my_cpu_thread)
     {
-        if (my_cpu_thread->isRunning())
+        if (!my_cpu_thread->isFinished())
+        {
             my_cpu_thread->terminate();
+            my_cpu_thread->wait();
+        }
         if (my_cpu)
             delete my_cpu;
         delete my_cpu_thread;
@@ -327,7 +303,7 @@ void MainWindow::gui_mem_update_view(
     for (dword i = 0; i < 4; i++)
     {
         row = (addr+i - addr_st) / 4, col = (addr+i) % 4;
-        if (row >= (*view_model)->rowCount()) break;
+        if (row >= (dword)((*view_model)->rowCount())) break;
         value = (val >> (8*(3-i))) & 0xFF;
 
 
@@ -366,8 +342,6 @@ void MainWindow::gui_mem_update(const dword mem_addr, const dword val)
     else if (qtCPU::DISP_MEM <= mem_addr && mem_addr < qtCPU::END_MEM)
     {
         gui_mem_update_view(&disp_mem_model, qtCPU::DISP_MEM, mem_addr, val);
-
-        emit disp_fresh(mem_addr, val);
     }
 }
 
@@ -389,11 +363,11 @@ int MainWindow::calc_clock_cycle(int val)
         return 20+(val-20)*12;
 }
 
-void MainWindow::gui_button_init()
+void MainWindow::gui_button_debug_init()
 {
-    ui->step_runButton->setEnabled(true);
     ui->timer_runButton->setEnabled(true);
     ui->timer_stopButton->setEnabled(false);
+    ui->step_runButton->setEnabled(true);
     ui->resetButton->setEnabled(true);
     ui->screenButton->setEnabled(true);
 
@@ -402,7 +376,6 @@ void MainWindow::gui_button_init()
 
     ui->breakpointLineEdit->setEnabled(true);
 }
-
 
 void MainWindow::gui_button_timer_start()
 {
@@ -418,8 +391,55 @@ void MainWindow::gui_button_timer_start()
     ui->breakpointLineEdit->setEnabled(false);
 }
 
-void MainWindow::connect_init()
+void MainWindow::gui_button_normal_init()
 {
+    ui->timer_runButton->setEnabled(true);
+    ui->timer_stopButton->setEnabled(false);
+    ui->step_runButton->setEnabled(false);
+    ui->resetButton->setEnabled(false);
+    ui->screenButton->setEnabled(true);
+
+    ui->clockHorizontalSlider->setEnabled(false);
+    ui->clockLabel->setEnabled(false);
+
+    ui->breakpointLineEdit->setEnabled(false);
+}
+
+void MainWindow::gui_button_normal_start()
+{
+    ui->timer_runButton->setEnabled(false);
+    ui->timer_stopButton->setEnabled(true);
+}
+
+void MainWindow::debug_connect_init()
+{
+    /*
+     * disconnect previous possible different mode's signals and slots
+     */
+    disconnect(ui->timer_runButton, SIGNAL(clicked()), &t_cpu_thread, SLOT(cpu_run()));
+    disconnect(ui->timer_runButton, SIGNAL(clicked()),  this, SLOT(gui_button_normal_start()));
+    disconnect(ui->timer_stopButton, SIGNAL(clicked()), &t_cpu_thread, SLOT(cpu_stop()));
+    disconnect(ui->timer_stopButton, SIGNAL(clicked()), this, SLOT(gui_button_normal_init()));
+
+    /*
+     * connect debug mode's signals and slots
+     */
+    connect(ui->timer_runButton, SIGNAL(clicked()), this, SLOT(timer_run_restart()));
+    //connect(ui->timer_runButton, SIGNAL(clicked()), this, SLOT(gui_button_timer_start()));
+    connect(ui->timer_stopButton, SIGNAL(clicked()), this, SLOT(timer_run_stop()));
+    //connect(ui->timer_stopButton, SIGNAL(clicked()), this, SLOT(gui_button_debug_init()));
+    connect(ui->step_runButton, SIGNAL(clicked()), this, SLOT(timer_run_once()));
+    connect(ui->resetButton, SIGNAL(clicked()), this, SLOT(gui_reset()));
+
+    /*
+     * connect clock's signals and slots
+     */
+    connect(ui->clockHorizontalSlider, SIGNAL(valueChanged(int)),
+            this, SLOT(gui_clk_update(int)));
+    connect(ui->clockHorizontalSlider, SIGNAL(valueChanged(int)),
+            this, SLOT(clock_update(int)));
+    connect(&clock, SIGNAL(timeout()), this, SLOT(timer_run_once()));
+
     /*
      * connect cpu's signals and slots
      */
@@ -441,11 +461,79 @@ void MainWindow::connect_init()
     /*
      * connect screen
      */
-    connect(this, SIGNAL(disp_fresh(dword,dword)),
+    connect(my_cpu, SIGNAL(disp_fresh(dword,dword)),
             keyboard_screen, SLOT(fresh(dword,dword)), Qt::QueuedConnection);
+
+    connect(my_cpu, SIGNAL(disp_set_cursor_pos(byte,byte)),
+            keyboard_screen, SLOT(set_cursor_pos(byte,byte)), Qt::QueuedConnection);
 
     connect(keyboard_screen, SIGNAL(send_scancode(byte)),
             my_cpu, SLOT(set_keyboard_irq(byte)), Qt::QueuedConnection);
+}
+
+void MainWindow::debug_disconnect_init()
+{
+    /*
+     * connect cpu's signals and slots
+     */
+    disconnect(this, SIGNAL(cpu_rst()),
+            my_cpu, SLOT(rst()));
+
+    disconnect(this, SIGNAL(cpu_run_once(int)),
+            my_cpu, SLOT(pc_increment(int)));
+
+    disconnect(my_cpu, SIGNAL(reg_update(dword,dword)),
+            this, SLOT(gui_reg_update(dword,dword)));
+
+    disconnect(my_cpu, SIGNAL(mem_update(dword,dword)),
+            this, SLOT(gui_mem_update(dword,dword)));
+
+    disconnect(my_cpu, SIGNAL(exec_result_send(bool)),
+            this, SLOT(exec_result_receive(bool)));
+
+    /*
+     * connect screen
+     */
+    disconnect(my_cpu, SIGNAL(disp_fresh(dword,dword)),
+            keyboard_screen, SLOT(fresh(dword,dword)));
+
+    disconnect(my_cpu, SIGNAL(disp_set_cursor_pos(byte,byte)),
+            keyboard_screen, SLOT(set_cursor_pos(byte,byte)));
+
+    disconnect(keyboard_screen, SIGNAL(send_scancode(byte)),
+            my_cpu, SLOT(set_keyboard_irq(byte)));
+}
+
+void MainWindow::normal_connect_init()
+{
+    /*
+     * disconnect previous possible different mode's signals and slots
+     */
+    disconnect(ui->timer_runButton, SIGNAL(clicked()), this, SLOT(timer_run_restart()));
+    disconnect(ui->timer_runButton, SIGNAL(clicked()), this, SLOT(gui_button_timer_start()));
+    disconnect(ui->timer_stopButton, SIGNAL(clicked()), this, SLOT(timer_run_stop()));
+    disconnect(ui->timer_stopButton, SIGNAL(clicked()), this, SLOT(gui_button_debug_init()));
+    disconnect(ui->step_runButton, SIGNAL(clicked()), this, SLOT(timer_run_once()));
+    disconnect(ui->resetButton, SIGNAL(clicked()), this, SLOT(gui_reset()));
+
+    /*
+     * connect normal mode's signals and slots
+     */
+    connect(ui->timer_runButton, SIGNAL(clicked()), &t_cpu_thread, SLOT(cpu_run()));
+    connect(ui->timer_runButton, SIGNAL(clicked()),  this, SLOT(gui_button_normal_start()));
+    connect(ui->timer_stopButton, SIGNAL(clicked()), &t_cpu_thread, SLOT(cpu_stop()));
+    connect(ui->timer_stopButton, SIGNAL(clicked()), this, SLOT(gui_button_normal_init()));
+
+    /*
+     * connect screen
+     */
+    connect(t_cpu_thread.cpu, SIGNAL(disp_fresh(dword,dword)),
+            keyboard_screen, SLOT(fresh(dword,dword)), Qt::QueuedConnection);
+
+    connect(t_cpu_thread.cpu, SIGNAL(disp_set_cursor_pos(byte,byte)),
+            keyboard_screen, SLOT(set_cursor_pos(byte,byte)), Qt::QueuedConnection);
+
+    connect(keyboard_screen, SIGNAL(send_scancode(byte)), &t_cpu_thread, SLOT(keyboard_irq(byte)));
 }
 
 void MainWindow::other_setting_init()
@@ -459,61 +547,66 @@ void MainWindow::other_setting_init()
 
 void MainWindow::about_to_open_file()
 {
-    qtCPU* temp_cpu = new qtCPU;
+    qtCPU* new_cpu = new qtCPU();
 
-    int failed = open_file(temp_cpu);
+    int failed = open_file(new_cpu);
 
     if (!failed)
     {
-        delete_all();
+        screen_init();
 
-        my_cpu = temp_cpu;
-        timer_run_init();
-
-        connect_init();
-        other_setting_init();
-
-        /*
-         * init screen
-         */
-        keyboard_screen->init(QChar(' '));
-
-        /*
-         * move cpu to second thread
-         */
-        my_cpu_thread = new QThread(this);
-        my_cpu->moveToThread(my_cpu_thread);
-        my_cpu_thread->start(QThread::TimeCriticalPriority);
-
-        gui_button_init();
-
-        //QMessageBox::warning(this, tr("Congratulations!"), tr("Loading successfully!"), QMessageBox::Yes);
+        if (ui->debugRadioButton->isChecked())
+        {
+            debug_about_to_open_file(new_cpu);
+        }
+        else if (ui->NormalRadioButton->isChecked())
+        {
+            normal_about_to_open_file(new_cpu);
+        }
     }
     else
-        delete temp_cpu;
+        delete new_cpu;
+}
+
+void MainWindow::debug_about_to_open_file(qtCPU* new_cpu)
+{
+    delete_all();
+
+    my_cpu = new_cpu;
+    my_cpu_thread = new QThread;
+    my_cpu->moveToThread(my_cpu_thread);
+
+    timer_run_init();
+    other_setting_init();
+
+    debug_connect_init();
+
+    keyboard_screen->init(QChar(' '));
+
+    gui_button_debug_init();
+
+
+    my_cpu_thread->start();
+}
+
+void MainWindow::normal_about_to_open_file(qtCPU* new_cpu)
+{
+    delete_all();
+
+    my_cpu = new_cpu;
+    t_cpu_thread.load_cpu(my_cpu);
+
+    normal_connect_init();
+
+    keyboard_screen->init(QChar(' '));
+
+    gui_button_normal_init();
+
+
+    t_cpu_thread.start();
 }
 
 int MainWindow::open_file(qtCPU* temp_cpu) {
-    /*
-     * load user's file
-     */
-    QString user_file =
-            QFileDialog::getOpenFileName(
-                this, tr("Open MIPS command file"), "*.s",
-                tr("MIPS command file (*.s)")
-                );
-
-    if (user_file.isEmpty())
-    {
-        //QMessageBox::warning(this, tr("Warning"), tr("Command file doesn't exsist!"), QMessageBox::Yes);
-        return 1;
-    }
-
-    if (load_user(user_file, temp_cpu))
-    {
-        return 1;
-    }
-
 
     /*
      * load kernel
@@ -531,6 +624,27 @@ int MainWindow::open_file(qtCPU* temp_cpu) {
     }
 
     if (load_kernel(kernel_file, temp_cpu))
+    {
+        return 1;
+    }
+
+
+    /*
+     * load user's file
+     */
+    QString user_file =
+            QFileDialog::getOpenFileName(
+                this, tr("Open MIPS command file"), "*.s",
+                tr("MIPS command file (*.s)")
+                );
+
+    if (user_file.isEmpty())
+    {
+        //QMessageBox::warning(this, tr("Warning"), tr("Command file doesn't exsist!"), QMessageBox::Yes);
+        return 1;
+    }
+
+    if (load_user(user_file, temp_cpu))
     {
         return 1;
     }
@@ -663,10 +777,7 @@ int MainWindow::load_user(QString fileName, qtCPU* my_cpu)
 
 void MainWindow::exec_result_receive(bool flag)
 {
-    //exec_result_mutex.lock();
     exec_result = flag;
-    //reg_update_flag = 0;
-    //exec_result_mutex.lock();
 }
 
 dword MainWindow::get_break_point()
@@ -699,13 +810,11 @@ void MainWindow::timer_run_stop()
 {
     clock.stop();
 
-    gui_button_init();
+    gui_button_debug_init();
 }
 
 void MainWindow::timer_run_once()
 {
-    //exec_result_mutex.lock();
-
     if (!is_stopped && get_break_point() == my_cpu_current_pc)
     {
         is_stopped = true;
@@ -719,7 +828,7 @@ void MainWindow::timer_run_once()
 
         emit cpu_run_once(0);
         ins_counter++;
-        qDebug() << ins_counter;
+        //qDebug() << ins_counter;
     }
     else
     {
@@ -729,8 +838,20 @@ void MainWindow::timer_run_once()
                     );
         timer_run_stop();
     }
+}
 
-    //exec_result_mutex.unlock();
+void MainWindow::screen_init()
+{
+    if (screen && keyboard_screen)
+        return;
+    screen = new QDialog(this);
+    keyboard_screen = new keyboardTextEdit(screen);
+
+    screen->resize(keyboard_screen->width(), keyboard_screen->height());
+    screen->setMinimumSize(keyboard_screen->width(), keyboard_screen->height());
+    screen->setMaximumSize(keyboard_screen->width(), keyboard_screen->height());
+
+    screen->setWindowTitle(QString("Screen"));
 }
 
 void MainWindow::disp_screen()

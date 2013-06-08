@@ -37,7 +37,10 @@ public:
         // co-cpu
 
         REG_BADVADDR = 8, REG_STATUS = 12, REG_CAUSE = 13,
-        REG_EPC = 14
+        REG_EPC = 14,
+
+        // key_irq
+        CUR_COL_MEM = 0X0000, CUR_ROW_MEM = 0x0001, IRQ_KEY_MEM = 0x0002
     };
 
 signals:
@@ -50,7 +53,7 @@ signals:
     void exec_result_send(bool flag);
     
 public slots:
-    void pc_increment(int action);
+    bool pc_increment(int action);
     void rst();
 
     void set_keyboard_irq(const byte val);

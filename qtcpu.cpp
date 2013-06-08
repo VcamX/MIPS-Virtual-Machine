@@ -94,7 +94,7 @@ void qtCPU::about_to_reg_update()
     cpy_reg();
 }
 
-void qtCPU::pc_increment(int action)
+bool qtCPU::pc_increment(int action)
 {
     if (action == 0)
     {
@@ -104,14 +104,13 @@ void qtCPU::pc_increment(int action)
 
             about_to_reg_update();
             emit exec_result_send(true);
+            return true;
         }
         else
         {
             emit exec_result_send(false);
+            return false;
         }
-    }
-    else if (action == 1)
-    {
     }
 }
 
@@ -409,20 +408,14 @@ int qtCPU::execute() {
 
             case 40:    //sb
                 memory[reg[rs]+dat+0] = (byte)(reg[rt] & 0xFF);
-                /*
-                mem_modified_flag = true;
-                mem_modified_addr = reg[rs] + dat;
-                */
+
                 send_mem_update(reg[rs] + dat);
                 break;
 
             case 41:    //sh
                 memory[reg[rs]+dat+0] = (byte)((reg[rt] >> 8) & 0xFF);
                 memory[reg[rs]+dat+1] = (byte)(reg[rt] & 0xFF);
-                /*
-                mem_modified_flag = true;
-                mem_modified_addr = reg[rs] + dat;
-                */
+
                 send_mem_update(reg[rs] + dat);
                 break;
 
@@ -431,10 +424,7 @@ int qtCPU::execute() {
                 memory[reg[rs]+dat+1] = (byte)((reg[rt] >> 16) & 0xFF);
                 memory[reg[rs]+dat+2] = (byte)((reg[rt] >> 8) & 0xFF);
                 memory[reg[rs]+dat+3] = (byte)(reg[rt] & 0xFF);
-                /*
-                mem_modified_flag = true;
-                mem_modified_addr = reg[rs] + dat;
-                */
+
                 send_mem_update(reg[rs] + dat);
                 break;
 
@@ -460,7 +450,13 @@ int qtCPU::execute() {
 
 void qtCPU::send_mem_update(const dword addr)
 {
-    emit mem_update(addr, get_ins(addr));
+    dword val = get_ins(addr);
+    emit mem_update(addr, val);
+
+    if (DISP_MEM <= addr && addr < END_MEM)
+        emit disp_fresh(addr, val);
+    if (addr <= CUR_ROW_MEM)
+        emit disp_set_cursor_pos(memory[CUR_ROW_MEM], memory[CUR_COL_MEM]);
 }
 
 const byte* qtCPU::get_mem_ptr(const dword addr_st) {
