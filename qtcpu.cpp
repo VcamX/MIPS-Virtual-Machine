@@ -9,12 +9,9 @@ qtCPU::qtCPU(QObject *parent) :
     QObject(parent)
 {
     memset(memory, 0, sizeof(memory));
-    memset(reg, 0, sizeof(reg));
+    //clr_mem(memory, END_MEM);
     memset(t_reg, 0, sizeof(t_reg));
 
-    clr_mem(memory, END_MEM);
-
-    //currsize = 0;
     rst();
 }
 
@@ -31,6 +28,9 @@ void qtCPU::rst()
     reg[30] = reg[29];
     reg[28] = STATIC_MEM;
     reg[REG_PC] = USER_MEM;
+
+    memset(c0_reg, 0, sizeof(c0_reg));
+    c0_reg[REG_STATUS] = 3;
 
     about_to_reg_update();
 }
@@ -123,11 +123,6 @@ dword qtCPU::get_ins(const dword pc) {
          (memory[pc+3]);
     return ir;
 }
-/*
-dword qtCPU::get_ins_counter() {
-    return (reg[REG_PC] - USER_MEM) / 4;
-}
-*/
 
 void qtCPU::set_keyboard_irq(const byte val)
 {
@@ -138,13 +133,20 @@ void qtCPU::set_keyboard_irq(const byte val)
 int qtCPU::execute() {
     int op, rs, rt, rd, dat, udat, addr, shmt, fun;
     unsigned long long t;
-    dword rpc = 0, t_ra = 0, ir;
+    dword ir, temp;
 
-    if (have_irq && !is_in_irq)
+    if (have_irq)
     {
         have_irq = false;
-        is_in_irq = true;
-        epc = reg[REG_PC];
+        c0_reg[REG_EPC] = reg[REG_PC];
+        reg[REG_PC] = EXP_ADDR;
+
+        // set reg Cause to the state of irq
+        c0_reg[REG_CAUSE] = (c0_reg[REG_CAUSE] & 0xFFFFFF03) | 0;
+
+        // set reg Status to the state of irq
+        temp = c0_reg[REG_STATUS] & 0xF;
+        c0_reg[REG_STATUS] = c0_reg[REG_STATUS] & (temp << 2);
     }
     else
     {
@@ -167,10 +169,15 @@ int qtCPU::execute() {
             case 0:
                 switch (fun) {
                     case 12:    //syscall
-                        t_ra = reg[31];
-                        reg[31] = reg[REG_PC];
-
+                        c0_reg[REG_EPC] = reg[REG_PC];
                         reg[REG_PC] = KERNEL_MEM;
+
+                        // set reg Cause to the state of syscall
+                        c0_reg[REG_CAUSE] = (c0_reg[REG_CAUSE] & 0xFFFFFF03) | 8;
+
+                        // set reg Status to the state of syscall
+                        temp = c0_reg[REG_STATUS] & 0xF;
+                        c0_reg[REG_STATUS] = c0_reg[REG_STATUS] & (temp << 2);
                         break;
 
                     case 16:    //mfhi
@@ -266,12 +273,6 @@ int qtCPU::execute() {
 
                     case 8:    //jr
                         reg[REG_PC] = reg[rs];
-
-                        if (rs == 31 && reg[REG_PC] == rpc)
-                        {
-                            //syscall_flag = false;
-                            reg[31] = t_ra;
-                        }
                         break;
                 }
                 break;
@@ -359,6 +360,22 @@ int qtCPU::execute() {
 
             case 15:     //lui
                 reg[rt] = dat << 16;
+                break;
+
+            case 16:
+                switch (rs)
+                {
+                    case 0: //mfc0
+                        reg[rt] = c0_reg[rd];
+                        break;
+                    case 4: //mtc0
+                        c0_reg[rd] = reg[rt];
+                        break;
+                    case 16: //eret
+                        temp = (c0_reg[REG_STATUS] & 0x60) >> 2;
+                        c0_reg[REG_STATUS] = c0_reg[REG_STATUS] & temp;
+                        break;
+                }
                 break;
 
             case 32:    //lb

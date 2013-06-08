@@ -43,6 +43,9 @@ MainWindow::MainWindow(QWidget *parent) :
     keyboard_screen = new keyboardTextEdit(screen);
 
     screen->resize(keyboard_screen->width(), keyboard_screen->height());
+    screen->setMinimumSize(keyboard_screen->width(), keyboard_screen->height());
+    screen->setMaximumSize(keyboard_screen->width(), keyboard_screen->height());
+
     screen->setWindowTitle(QString("Screen"));
 
 
@@ -363,6 +366,8 @@ void MainWindow::gui_mem_update(const dword mem_addr, const dword val)
     else if (qtCPU::DISP_MEM <= mem_addr && mem_addr < qtCPU::END_MEM)
     {
         gui_mem_update_view(&disp_mem_model, qtCPU::DISP_MEM, mem_addr, val);
+
+        emit disp_fresh(mem_addr, val);
     }
 }
 
@@ -378,6 +383,8 @@ int MainWindow::calc_clock_cycle(int val)
 {
     if (val <= 20)
         return val;
+    else if (val >= 99)
+        return 1000;
     else
         return 20+(val-20)*12;
 }
@@ -430,10 +437,21 @@ void MainWindow::connect_init()
 
     connect(my_cpu, SIGNAL(exec_result_send(bool)),
             this, SLOT(exec_result_receive(bool)), Qt::QueuedConnection);
+
+    /*
+     * connect screen
+     */
+    connect(this, SIGNAL(disp_fresh(dword,dword)),
+            keyboard_screen, SLOT(fresh(dword,dword)), Qt::QueuedConnection);
+
+    connect(keyboard_screen, SIGNAL(send_scancode(byte)),
+            my_cpu, SLOT(set_keyboard_irq(byte)), Qt::QueuedConnection);
 }
 
 void MainWindow::other_setting_init()
 {
+    ins_counter = 0;
+
     gui_ins_counter_update(0);
     my_cpu_current_pc = qtCPU::USER_MEM;
     exec_result = true;
@@ -456,11 +474,16 @@ void MainWindow::about_to_open_file()
         other_setting_init();
 
         /*
+         * init screen
+         */
+        keyboard_screen->init(QChar(' '));
+
+        /*
          * move cpu to second thread
          */
         my_cpu_thread = new QThread(this);
         my_cpu->moveToThread(my_cpu_thread);
-        my_cpu_thread->start();
+        my_cpu_thread->start(QThread::TimeCriticalPriority);
 
         gui_button_init();
 
@@ -695,6 +718,8 @@ void MainWindow::timer_run_once()
         gui_reg_update(qtCPU::REGNUM+1, 0);
 
         emit cpu_run_once(0);
+        ins_counter++;
+        qDebug() << ins_counter;
     }
     else
     {

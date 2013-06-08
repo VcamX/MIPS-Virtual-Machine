@@ -17,6 +17,7 @@ signals:
     void send_scancode(const byte key_val);
 
 public slots:
+    void init(QChar ch);
     void init(const byte* mem);
     void fresh(const dword addr, const dword val);
     void set_cursor_pos(const byte row, const byte col);
@@ -31,7 +32,6 @@ private:
 
     int row, col;
 
-    void init(QChar ch);
     void about_to_send_scancode(const int val, const int mode);
 
 protected:

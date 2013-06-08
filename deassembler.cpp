@@ -117,7 +117,6 @@ int deassembler::regName(char s[], dword r) {
         case 31: strcpy(s, "$ra"); break;
         case 32: strcpy(s, "$HI"); break;
         case 33: strcpy(s, "$LO"); break;
-        case 34: strcpy(s, "PC"); break;
     }
     return 1;
 }
@@ -309,6 +308,21 @@ int deassembler::trans(char s[], dword ir, dword pc) {
             
         case 15:
             sprintf(s, "lui %s, 0x%04X", crt, data);
+            break;
+            
+        case 16:
+            switch (rs)
+            {
+                case 0:
+                    sprintf(s, "mfc0 %s, %s", crt, crd);
+                    break;
+                case 4:
+                    sprintf(s, "mtc0 %s, %s", crd, crt);
+                    break;
+                case 16:
+                    sprintf(s, "eret");
+                    break;
+            }
             break;
             
         case 32:

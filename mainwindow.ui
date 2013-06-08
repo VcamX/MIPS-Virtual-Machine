@@ -361,7 +361,7 @@
       <item>
        <widget class="QPushButton" name="screenButton">
         <property name="enabled">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="text">
          <string>Screen (F9)</string>

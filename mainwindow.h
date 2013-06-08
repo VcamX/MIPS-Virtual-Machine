@@ -39,6 +39,8 @@ signals:
     void cpu_run_once(int action);
     void cpu_rst();
 
+    void disp_fresh(const dword addr, const dword val);
+
 public slots:
     void gui_ins_counter_update(const int ins_counter);
     void gui_reg_update(const dword reg, const dword val);
@@ -100,6 +102,8 @@ private:
     QTimer clock;
     qtCPU* my_cpu;
     QThread* my_cpu_thread;
+
+    int ins_counter;
 
     dword codeview_current_row, my_cpu_current_pc;
     bool is_stopped; // for break point

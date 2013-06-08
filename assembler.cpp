@@ -11,13 +11,7 @@
 assembler::assembler() {
     init();
 }
-/*
-assembler::assembler(std::string filename) {
-    init();
-    load(filename);
-    assemble();
-}
-*/
+
 assembler::~assembler() {
     
 }
@@ -391,7 +385,17 @@ dword assembler::regX(char s[])
             reg = 31;
             break;
         default:
-            reg = -1;
+            if (!strcmp(s, "BadVAddr"))
+                reg = 8;
+            else if (!strcmp(s, "Status"))
+                reg = 12;
+            else if (!strcmp(s, "Cause"))
+                reg = 13;
+            else if (!strcmp(s, "EPC"))
+                reg = 14;
+            else
+                reg = -1;
+                
             break;
     }
     return (reg & 31);
@@ -645,6 +649,9 @@ dword assembler::gen_core(char s[][PARA_LEN]) {
         return (regX(s[1]) << 21) |
                (regX(s[2]) << 16) | 27;
 
+    else if (!strcmp(s[0], "eret"))
+        return 0x42000018;
+
     else if (!strcmp(s[0], "j")) {
         if (is_num(s[1]))
             return (2 << 26) |
@@ -707,12 +714,23 @@ dword assembler::gen_core(char s[][PARA_LEN]) {
                (regX(s[1]) << 16) |
                (immed(s[2], 65535, 0));
                
+    else if (!strcmp(s[0], "mfc0"))
+        return (16 << 26) |
+               (regX(s[1]) << 16) |
+               (regX(s[2]) << 11);
+               
     else if (!strcmp(s[0], "mfhi"))
         return (regX(s[1]) << 11) | 16;
     
     else if (!strcmp(s[0], "mflo"))
         return (regX(s[1]) << 11) | 18;
     
+    else if (!strcmp(s[0], "mtc0"))
+        return (16 << 26) |
+               (4 << 21) |
+               (regX(s[1]) << 16) |
+               (regX(s[2]) << 11);
+               
     else if (!strcmp(s[0], "mult"))
         return (regX(s[1]) << 21) |
                (regX(s[2]) << 16) | 24;

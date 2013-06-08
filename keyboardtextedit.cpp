@@ -53,7 +53,7 @@ void keyboardTextEdit::about_to_send_scancode(const int val, const int mode)
 {
     byte key_val = (byte)( mode ? val|0x80 : val );
     qDebug() << "send scancode:" << key_val;
-    //emit send_scancode( key_val );
+    emit send_scancode( key_val );
 }
 
 void keyboardTextEdit::closeEvent(QCloseEvent* e)
