@@ -32,7 +32,7 @@ public:
         KERNEL_MEM = 0, USER_MEM = 0x2000, STATIC_MEM = 0x5000,
         MAIN_MEM = 0x7000, DISP_MEM = END_MEM - WIDTH*HEIGHT,
 
-        EXP_ADDR = 0x100,
+        SYS_ADDR = 0x100,
 
         // co-cpu
 

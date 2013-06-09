@@ -24,6 +24,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     commd_model = NULL;
     reg_model = NULL;
+    kernel_mem_model = NULL;
     main_mem_model = NULL;
     static_mem_model = NULL;
     disp_mem_model = NULL;
@@ -82,6 +83,13 @@ void MainWindow::gui_reset()
     timer_run_init();
     reset_all();
     other_setting_init();
+
+
+    gui_mem_init_view(
+                ui->disp_memTableView, &disp_mem_model,
+                qtCPU::DISP_MEM, qtCPU::END_MEM, my_cpu->get_mem_ptr()
+                );
+    keyboard_screen->init(QChar(' '));
 }
 
 void MainWindow::gui_ins_init(const dword* mem, const dword size)
@@ -217,7 +225,7 @@ void MainWindow::gui_reg_update(const dword reg, const dword val)
 
 void MainWindow::gui_mem_init_view(
         QTableView* tableview, QStandardItemModel** view_model,
-        dword addr_st, dword addr_ed, const byte* mem_ptr
+        dword addr_st, dword addr_ed, const byte* mem_ptr, int mode
         )
 {
     QStandardItemModel* model = new QStandardItemModel;
@@ -260,6 +268,37 @@ void MainWindow::gui_mem_init_view(
         model->item(row, 2)->setTextAlignment(Qt::AlignCenter);
     }
 
+    if (mode == 1)
+    {
+        dword mem_len = (qtCPU::USER_MEM - qtCPU::KERNEL_MEM)/4;
+        dword *mem = new dword[mem_len];
+        for (dword i = qtCPU::KERNEL_MEM; i < qtCPU::USER_MEM; i+=4)
+        {
+            mem[i/4] = 0;
+            mem[i/4] |= mem_ptr[i+0] << 24;
+            mem[i/4] |= mem_ptr[i+1] << 16;
+            mem[i/4] |= mem_ptr[i+2] << 8;
+            mem[i/4] |= mem_ptr[i+3] << 0;
+        }
+
+        model->setColumnCount(4);
+        model->setHeaderData(3, Qt::Horizontal, tr("Instruction"));
+
+        deassembler my_deassembler;
+        my_deassembler.load(mem, mem_len, qtCPU::KERNEL_MEM);
+        for (int row = 0; row < my_deassembler.get_instru_num(); row++) {
+            /*
+             * instruction
+             */
+            model->setItem(row, 3,
+                           new QStandardItem( QString(my_deassembler.get_instru(row).c_str()) )
+                           );
+            model->item(row, 3)->setTextAlignment(Qt::AlignCenter);
+        }
+
+        delete [] mem;
+    }
+
     if (tableview->model())
         delete tableview->model();
 
@@ -268,12 +307,19 @@ void MainWindow::gui_mem_init_view(
     tableview->setColumnWidth(0, 70);
     tableview->setColumnWidth(1, 85);
     tableview->setColumnWidth(2, 85);
+    if (mode == 1)
+        tableview->horizontalHeader()->setResizeMode(3, QHeaderView::Stretch);
     //tableview->horizontalHeader()->setResizeMode(QHeaderView::Fixed);
     //tableview->horizontalHeader()->setResizeMode(QHeaderView::Stretch);
 }
 
 void MainWindow::gui_mem_init(const byte* mem_ptr)
 {
+    gui_mem_init_view(
+                ui->kernel_memTableView, &kernel_mem_model,
+                qtCPU::KERNEL_MEM, qtCPU::USER_MEM, mem_ptr, 1
+                );
+
     gui_mem_init_view(
                 ui->static_memTableView, &static_mem_model,
                 qtCPU::STATIC_MEM, qtCPU::MAIN_MEM, mem_ptr
@@ -327,9 +373,9 @@ void MainWindow::gui_mem_update_view(
 
 void MainWindow::gui_mem_update(const dword mem_addr, const dword val)
 {
-    if (qtCPU::USER_MEM <= mem_addr && mem_addr < qtCPU::STATIC_MEM)
+    if (qtCPU::KERNEL_MEM <= mem_addr && mem_addr < qtCPU::USER_MEM)
     {
-
+        gui_mem_update_view(&kernel_mem_model, qtCPU::KERNEL_MEM, mem_addr, val);
     }
     else if (qtCPU::STATIC_MEM <= mem_addr && mem_addr < qtCPU::MAIN_MEM)
     {
@@ -467,7 +513,10 @@ void MainWindow::debug_connect_init()
     connect(my_cpu, SIGNAL(disp_set_cursor_pos(byte,byte)),
             keyboard_screen, SLOT(set_cursor_pos(byte,byte)), Qt::QueuedConnection);
 
-    connect(keyboard_screen, SIGNAL(send_scancode(byte)),
+    //connect(keyboard_screen, SIGNAL(send_scancode(byte)),
+    //        my_cpu, SLOT(set_keyboard_irq(byte)), Qt::QueuedConnection);
+
+    connect(keyboard_screen, SIGNAL(send_asciicode(byte)),
             my_cpu, SLOT(set_keyboard_irq(byte)), Qt::QueuedConnection);
 }
 
@@ -500,7 +549,10 @@ void MainWindow::debug_disconnect_init()
     disconnect(my_cpu, SIGNAL(disp_set_cursor_pos(byte,byte)),
             keyboard_screen, SLOT(set_cursor_pos(byte,byte)));
 
-    disconnect(keyboard_screen, SIGNAL(send_scancode(byte)),
+    //disconnect(keyboard_screen, SIGNAL(send_scancode(byte)),
+    //        my_cpu, SLOT(set_keyboard_irq(byte)));
+
+    disconnect(keyboard_screen, SIGNAL(send_asciicode(byte)),
             my_cpu, SLOT(set_keyboard_irq(byte)));
 }
 
@@ -677,7 +729,7 @@ int MainWindow::load_kernel(QString fileName, qtCPU* my_cpu)
     my_assembler.save(mem);
 
     int failed =
-            my_cpu->load_mem_commd_data(mem, my_assembler.get_commd_num(), qtCPU::KERNEL_MEM, qtCPU::USER_MEM);
+            my_cpu->load_mem_commd_data(mem, my_assembler.get_commd_num(), qtCPU::SYS_ADDR, qtCPU::USER_MEM);
     delete [] mem;
     if (failed)
     {

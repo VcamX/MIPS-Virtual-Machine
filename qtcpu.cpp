@@ -1,9 +1,8 @@
 #include "qtcpu.h"
 #include <iostream>
 #include <cstdio>
-//#include <cstdlib>
-//#include <string>
 #include <cstring>
+#include <QDebug>
 
 qtCPU::qtCPU(QObject *parent) :
     QObject(parent)
@@ -33,6 +32,9 @@ void qtCPU::rst()
     c0_reg[REG_STATUS] = 3;
 
     about_to_reg_update();
+
+    for (dword i = DISP_MEM; i < END_MEM; i++)
+        memory[i] = 0;
 }
 
 /*
@@ -138,7 +140,7 @@ int qtCPU::execute() {
     {
         have_irq = false;
         c0_reg[REG_EPC] = reg[REG_PC];
-        reg[REG_PC] = EXP_ADDR;
+        reg[REG_PC] = SYS_ADDR;
 
         // set reg Cause to the state of irq
         c0_reg[REG_CAUSE] = (c0_reg[REG_CAUSE] & 0xFFFFFF03) | 0;
@@ -169,10 +171,10 @@ int qtCPU::execute() {
                 switch (fun) {
                     case 12:    //syscall
                         c0_reg[REG_EPC] = reg[REG_PC];
-                        reg[REG_PC] = KERNEL_MEM;
+                        reg[REG_PC] = SYS_ADDR;
 
                         // set reg Cause to the state of syscall
-                        c0_reg[REG_CAUSE] = (c0_reg[REG_CAUSE] & 0xFFFFFF03) | 8;
+                        c0_reg[REG_CAUSE] = (c0_reg[REG_CAUSE] & 0xFFFFFF03) | (8 << 2);
 
                         // set reg Status to the state of syscall
                         temp = c0_reg[REG_STATUS] & 0xF;
@@ -366,6 +368,7 @@ int qtCPU::execute() {
                 {
                     case 0: //mfc0
                         reg[rt] = c0_reg[rd];
+                        qDebug() << c0_reg[rd];
                         break;
                     case 4: //mtc0
                         c0_reg[rd] = reg[rt];

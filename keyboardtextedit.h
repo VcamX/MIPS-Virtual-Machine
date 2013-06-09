@@ -15,6 +15,7 @@ public:
 
 signals:
     void send_scancode(const byte key_val);
+    void send_asciicode(const byte key_val);
 
 public slots:
     void init(QChar ch);
@@ -33,6 +34,7 @@ private:
     int row, col;
 
     void about_to_send_scancode(const int val, const int mode);
+    void about_to_send_asciicode(const byte val);
 
 protected:
     virtual void keyPressEvent(QKeyEvent *e);

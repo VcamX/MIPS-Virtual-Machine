@@ -64,7 +64,7 @@ private slots:
     void gui_reg_init(const dword reg[]);
 
     void gui_mem_init_view(QTableView *tableview, QStandardItemModel **view_model,
-                           dword addr_st, dword addr_ed, const byte *mem_ptr);
+                           dword addr_st, dword addr_ed, const byte *mem_ptr, int mode = 0);
     void gui_mem_init(const byte* mem_ptr);
     void gui_mem_update_view(QStandardItemModel **view_model,
                              const dword addr_st, const dword addr, const dword val);
@@ -107,7 +107,9 @@ private:
     QDialog *screen;
     keyboardTextEdit *keyboard_screen;
 
-    QStandardItemModel *reg_model, *commd_model, *main_mem_model, *static_mem_model, *disp_mem_model;
+    QStandardItemModel
+        *reg_model, *commd_model,
+        *kernel_mem_model, *main_mem_model, *static_mem_model, *disp_mem_model;
 
     QTimer clock;
     qtCPU* my_cpu;

@@ -56,6 +56,12 @@ void keyboardTextEdit::about_to_send_scancode(const int val, const int mode)
     emit send_scancode( key_val );
 }
 
+void keyboardTextEdit::about_to_send_asciicode(const byte val)
+{
+    qDebug() << "send asciicode:" << val;
+    emit send_asciicode( val );
+}
+
 void keyboardTextEdit::closeEvent(QCloseEvent* e)
 {
     e->accept();
@@ -63,8 +69,31 @@ void keyboardTextEdit::closeEvent(QCloseEvent* e)
 
 void keyboardTextEdit::keyPressEvent(QKeyEvent* e)
 {
-    qDebug() << "key press(scan code):" << e->nativeScanCode();
-    about_to_send_scancode(e->nativeScanCode(), 0);
+    //qDebug() << "key press(scan code):" << e->nativeScanCode();
+    //about_to_send_scancode(e->nativeScanCode(), 0);
+
+    if (!e->text().isEmpty())
+    {
+        byte val = e->text().at(0).toAscii();
+        //qDebug() << e->text() << val;
+        about_to_send_asciicode(val);
+    }
+
+    /*
+    int val;
+    if (Qt::Key_Space <= e->key() && e->key() <= Qt::Key_QuoteLeft)
+    {
+         val = (byte)e->key();
+         if (e->modifiers() == Qt::ShiftModifier &&
+             0x41 <= val && val <= 0x5a)
+         {
+             val += 0x20;
+         }
+    }
+    else if (Qt::)
+    qDebug() << "ascii code:" << val;
+    about_to_send_asciicode(val);
+    */
 
     /*
     if (e->key() == Qt::Key_Right)
@@ -100,8 +129,8 @@ void keyboardTextEdit::keyPressEvent(QKeyEvent* e)
 
 void keyboardTextEdit::keyReleaseEvent(QKeyEvent* e)
 {
-    qDebug() << "key release(scan code):" << e->nativeScanCode();
-    about_to_send_scancode(e->nativeScanCode(), 1);
+    //qDebug() << "key release(scan code):" << e->nativeScanCode();
+    //about_to_send_scancode(e->nativeScanCode(), 1);
 }
 
 void keyboardTextEdit::init(const byte* mem)

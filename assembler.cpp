@@ -347,6 +347,17 @@ int assembler::strcut(const char buf[], int mode) {
 dword assembler::regX(char s[])
 {
     dword reg;
+
+    if (!strcmp(s, "BadVAddr"))
+        reg = 8;
+    else if (!strcmp(s, "Status"))
+        reg = 12;
+    else if (!strcmp(s, "Cause"))
+        reg = 13;
+    else if (!strcmp(s, "EPC"))
+        reg = 14;
+    else
+    {
     switch (s[1]) {
         case 'z':
             reg = 0;
@@ -385,18 +396,9 @@ dword assembler::regX(char s[])
             reg = 31;
             break;
         default:
-            if (!strcmp(s, "BadVAddr"))
-                reg = 8;
-            else if (!strcmp(s, "Status"))
-                reg = 12;
-            else if (!strcmp(s, "Cause"))
-                reg = 13;
-            else if (!strcmp(s, "EPC"))
-                reg = 14;
-            else
-                reg = -1;
-                
+            reg = -1;
             break;
+    }
     }
     return (reg & 31);
 }
