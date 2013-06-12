@@ -462,10 +462,8 @@ void MainWindow::debug_connect_init()
     /*
      * disconnect previous possible different mode's signals and slots
      */
-    disconnect(ui->timer_runButton, SIGNAL(clicked()), &t_cpu_thread, SLOT(cpu_run()));
-    disconnect(ui->timer_runButton, SIGNAL(clicked()),  this, SLOT(gui_button_normal_start()));
-    disconnect(ui->timer_stopButton, SIGNAL(clicked()), &t_cpu_thread, SLOT(cpu_stop()));
-    disconnect(ui->timer_stopButton, SIGNAL(clicked()), this, SLOT(gui_button_normal_init()));
+    disconnect(ui->timer_runButton, SIGNAL(clicked()), 0, 0);
+    disconnect(ui->timer_stopButton, SIGNAL(clicked()), 0, 0);
 
     /*
      * connect debug mode's signals and slots
@@ -523,8 +521,10 @@ void MainWindow::debug_connect_init()
 void MainWindow::debug_disconnect_init()
 {
     /*
-     * connect cpu's signals and slots
+     * disconnect cpu's signals and slots
      */
+    disconnect(this, 0, my_cpu, 0);
+    /*
     disconnect(this, SIGNAL(cpu_rst()),
             my_cpu, SLOT(rst()));
 
@@ -539,10 +539,13 @@ void MainWindow::debug_disconnect_init()
 
     disconnect(my_cpu, SIGNAL(exec_result_send(bool)),
             this, SLOT(exec_result_receive(bool)));
+    */
 
     /*
-     * connect screen
+     * disconnect screen
      */
+    disconnect(keyboard_screen, 0, my_cpu, 0);
+    /*
     disconnect(my_cpu, SIGNAL(disp_fresh(dword,dword)),
             keyboard_screen, SLOT(fresh(dword,dword)));
 
@@ -554,6 +557,7 @@ void MainWindow::debug_disconnect_init()
 
     disconnect(keyboard_screen, SIGNAL(send_asciicode(byte)),
             my_cpu, SLOT(set_keyboard_irq(byte)));
+    */
 }
 
 void MainWindow::normal_connect_init()
@@ -561,12 +565,10 @@ void MainWindow::normal_connect_init()
     /*
      * disconnect previous possible different mode's signals and slots
      */
-    disconnect(ui->timer_runButton, SIGNAL(clicked()), this, SLOT(timer_run_restart()));
-    disconnect(ui->timer_runButton, SIGNAL(clicked()), this, SLOT(gui_button_timer_start()));
-    disconnect(ui->timer_stopButton, SIGNAL(clicked()), this, SLOT(timer_run_stop()));
-    disconnect(ui->timer_stopButton, SIGNAL(clicked()), this, SLOT(gui_button_debug_init()));
-    disconnect(ui->step_runButton, SIGNAL(clicked()), this, SLOT(timer_run_once()));
-    disconnect(ui->resetButton, SIGNAL(clicked()), this, SLOT(gui_reset()));
+    disconnect(ui->timer_runButton, SIGNAL(clicked()), 0, 0);
+    disconnect(ui->timer_stopButton, SIGNAL(clicked()), 0, 0);
+    disconnect(ui->step_runButton, SIGNAL(clicked()), 0, 0);
+    disconnect(ui->resetButton, SIGNAL(clicked()), 0, 0);
 
     /*
      * connect normal mode's signals and slots

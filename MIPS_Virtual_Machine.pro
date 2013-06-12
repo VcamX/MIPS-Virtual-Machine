@@ -21,7 +21,6 @@ SOURCES += \
     qtcpu_thread.cpp
 
 FORMS += \
-    screendialog.ui \
     mainwindow.ui \
     loadingdialog.ui
 

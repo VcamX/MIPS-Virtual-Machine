@@ -85,6 +85,7 @@ void qtCPU_thread::run()
                 if (!cpu->pc_increment(0))
                     break;
             }
+            usleep(100);
         }
     }
 }

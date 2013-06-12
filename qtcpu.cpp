@@ -35,6 +35,13 @@ void qtCPU::rst()
 
     for (dword i = DISP_MEM; i < END_MEM; i++)
         memory[i] = 0;
+
+
+    memory[0] = 0;
+    memory[1] = 0;
+    memory[1] = 0;
+    memory[3] = 0x10;
+    memory[4] = 0x10;
 }
 
 /*
@@ -129,6 +136,8 @@ void qtCPU::set_keyboard_irq(const byte val)
 {
     have_irq = true;
     memory[2] = val;
+    qDebug() << "irq:" << val;
+    send_mem_update(2);
 }
 
 int qtCPU::execute() {
@@ -368,7 +377,7 @@ int qtCPU::execute() {
                 {
                     case 0: //mfc0
                         reg[rt] = c0_reg[rd];
-                        qDebug() << c0_reg[rd];
+                        //qDebug() << c0_reg[rd];
                         break;
                     case 4: //mtc0
                         c0_reg[rd] = reg[rt];

@@ -39,7 +39,7 @@ public:
     void print();
     
     void set_CPU_mem(
-        dword _kernel = qtCPU::KERNEL_MEM,
+        dword _kernel = qtCPU::SYS_ADDR,
         dword _user = qtCPU::USER_MEM,
         dword _static = qtCPU::STATIC_MEM,
         dword _main = qtCPU::MAIN_MEM,

@@ -157,7 +157,7 @@ void keyboardTextEdit::fresh(const dword addr, const dword val)
         if (t_addr < (dword)content.length())
         {
             byte ch = (val >> (8*(3-i))) & 0xFF;
-            content[t_addr++] = QChar(ch);
+            content[t_addr++] = (0x20 < ch && ch < 0x7F) ? QChar(ch) : QChar(' ');
         }
         i++;
     }
