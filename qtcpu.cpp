@@ -136,7 +136,7 @@ void qtCPU::set_keyboard_irq(const byte val)
 {
     have_irq = true;
     memory[2] = val;
-    qDebug() << "irq:" << val;
+    qDebug() << "CPU received IRQ, value is" << val;
     send_mem_update(2);
 }
 

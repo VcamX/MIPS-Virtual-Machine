@@ -48,14 +48,6 @@ public slots:
     void gui_mem_update(const dword mem_addr, const dword val);
     
 private slots:
-    void reset_all();
-    void delete_all();
-
-    void debug_connect_init();
-    void debug_disconnect_init();
-    void normal_connect_init();
-    void other_setting_init();
-
     void gui_reset();
 
     void gui_ins_init(const dword* mem, const dword size);
@@ -79,10 +71,22 @@ private slots:
 
     dword get_break_point();
 
+    void uninstall_rc();
+
     void about_to_open_file();
     int open_file(qtCPU *temp_cpu);
+
     void debug_about_to_open_file(qtCPU* new_cpu);
+    void debug_reset_all();
+    void debug_delete_all();
+    void debug_connect_init();
+    void debug_disconnect();
+    void debug_other_setting_init();
+
     void normal_about_to_open_file(qtCPU* new_cpu);
+    void normal_delete_all();
+    void normal_connect_init();
+    void normal_disconnect();
 
     int load_user(QString fileName, qtCPU *my_cpu);
     int load_kernel(QString fileName, qtCPU *my_cpu);
@@ -113,14 +117,16 @@ private:
 
     QTimer clock;
     qtCPU* my_cpu;
-    QThread* my_cpu_thread;
-    qtCPU_thread t_cpu_thread;
+    QThread* debug_cpu_thread;
+    qtCPU_thread normal_cpu_thread;
 
     int ins_counter;
 
     dword codeview_current_row, my_cpu_current_pc;
     bool is_stopped; // for break point
     bool exec_result; // record whether cpu is kept running
+
+    int debug_or_normal;   // 0 for init, 1 for debug, 2 for normal
 
     // tools for convinient
     inline QString dword2QString(const dword &data);

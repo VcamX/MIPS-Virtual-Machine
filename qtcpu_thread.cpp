@@ -7,6 +7,8 @@ qtCPU_thread::qtCPU_thread(QObject *parent) :
     cpu = NULL;
     loaded_flag = false;
     stop_flag = true;
+    have_irq = false;
+    irq_key_value = 0;
 }
 
 qtCPU_thread::~qtCPU_thread()
@@ -51,6 +53,7 @@ bool qtCPU_thread::delete_cpu()
 
 void qtCPU_thread::cpu_run()
 {
+    qDebug() << "CPU is running at thread" << currentThreadId();
     QMutexLocker locker(&mutex);
     stop_flag = false;
     run_condition.wakeOne();
@@ -58,34 +61,55 @@ void qtCPU_thread::cpu_run()
 
 void qtCPU_thread::cpu_stop()
 {
+    qDebug() << "CPU stoppd at thread" << currentThreadId();
     QMutexLocker locker(&mutex);
     stop_flag = true;
 }
 
 void qtCPU_thread::keyboard_irq(const byte val)
 {
+    qDebug() << "Keyboard interupt happened at thread" << currentThreadId();
     QMutexLocker locker(&mutex);
-    cpu->set_keyboard_irq(val);
+    have_irq = true;
+    irq_key_value = val;
 }
 
 void qtCPU_thread::run()
 {
+    qDebug() << currentThreadId();
     if (loaded_flag)
     {
         forever
         {
+            /*
+             * check whether it needs to stop
+             */
             {
                 QMutexLocker locker(&mutex);
                 if (stop_flag)
                     run_condition.wait(&mutex);
             }
 
+            /*
+             * cpu run once
+             */
             {
                 QMutexLocker locker(&mutex);
                 if (!cpu->pc_increment(0))
                     break;
             }
-            usleep(100);
+
+            /*
+             * check whether there is keyboard_irq
+             */
+            {
+                QMutexLocker locker(&mutex);
+                if (have_irq)
+                {
+                    have_irq = false;
+                    cpu->set_keyboard_irq(irq_key_value);
+                }
+            }
         }
     }
 }

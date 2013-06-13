@@ -29,7 +29,8 @@ public slots:
     void keyboard_irq(const byte val);
 
 private:
-    bool loaded_flag, stop_flag;
+    bool loaded_flag, stop_flag, have_irq;
+    byte irq_key_value;
 
     QMutex mutex;
     QWaitCondition run_condition;
