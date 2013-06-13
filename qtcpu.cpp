@@ -121,6 +121,7 @@ bool qtCPU::pc_increment(int action)
             return false;
         }
     }
+    return false;
 }
 
 dword qtCPU::get_ins(const dword pc) {
