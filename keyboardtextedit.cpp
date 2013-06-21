@@ -16,11 +16,11 @@ keyboardTextEdit::keyboardTextEdit(QWidget *parent) :
     palette.setBrush(QPalette::Active, QPalette::Base, QBrush(Qt::black));
     setPalette(palette);
 
-    setGeometry(0, 0, 810, 410);
-    setMinimumSize(810, 410);
-    setMaximumSize(810, 410);
+    setGeometry(0, 0, 730, 510);
+    setMinimumSize(730, 510);
+    setMaximumSize(730, 510);
 
-    setFont(QFont(QString("Lucida Console"), 12));
+    setFont(QFont(QString("Consolas"), 13));
     setAutoFillBackground(false);
     setFocusPolicy(Qt::StrongFocus);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
