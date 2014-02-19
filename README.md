@@ -1,4 +1,4 @@
-MIPS_Virtual_Machine
+MIPS Virtual Machine
 ====================
 
 Project for Computer Organization
